@@ -74,8 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
+        titleSpacing: 20,
         title: Row(
           children: [
+            // Brand Logo
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -104,13 +106,63 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: AppTheme.textSecondary,
               ),
             ),
+
+            const SizedBox(width: 24),
+
+            // Search Bar located between "CINEMAS" and City Selector
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: SizedBox(
+                    height: 42,
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: (_) => _filterMovies(),
+                      style: const TextStyle(fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Search movies, genres, actors...',
+                        hintStyle: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                        suffixIcon: _searchController.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _filterMovies();
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: AppTheme.surfaceLight,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(color: AppTheme.surfaceBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(color: AppTheme.surfaceBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 16),
           ],
         ),
         actions: [
           // City Selector Dropdown
           if (_cities.isNotEmpty)
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              margin: const EdgeInsets.only(right: 20, top: 8, bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: AppTheme.surfaceLight,
@@ -154,33 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Search & Filters Header
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              onChanged: (_) => _filterMovies(),
-                              decoration: InputDecoration(
-                                hintText: 'Search movies, genres, actors...',
-                                prefixIcon: const Icon(Icons.search_rounded),
-                                suffixIcon: _searchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 18),
-                                        onPressed: () {
-                                          _searchController.clear();
-                                          _filterMovies();
-                                        },
-                                      )
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    const SizedBox(height: 16),
 
                     // Genre Pills
                     SizedBox(
