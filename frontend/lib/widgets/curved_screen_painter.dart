@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class CurvedScreenPainter extends CustomPainter {
+  final bool isDark;
+
+  CurvedScreenPainter({this.isDark = true});
+
   @override
   void paint(Canvas canvas, Size size) {
     // 1. Ambient projection beam glow
@@ -15,11 +19,17 @@ class CurvedScreenPainter extends CustomPainter {
       ..shader = RadialGradient(
         center: Alignment.topCenter,
         radius: 0.85,
-        colors: [
-          AppTheme.cyanAccent.withOpacity(0.18),
-          AppTheme.primary.withOpacity(0.08),
-          Colors.transparent,
-        ],
+        colors: isDark
+            ? [
+                AppTheme.cyanAccent.withValues(alpha: 0.18),
+                AppTheme.primary.withValues(alpha: 0.08),
+                Colors.transparent,
+              ]
+            : [
+                const Color(0xFF0284C7).withValues(alpha: 0.12),
+                const Color(0xFFD97706).withValues(alpha: 0.06),
+                Colors.transparent,
+              ],
         stops: const [0.0, 0.4, 1.0],
       ).createShader(glowRect);
 
@@ -43,20 +53,29 @@ class CurvedScreenPainter extends CustomPainter {
     );
 
     final Paint screenGlowPaint = Paint()
-      ..color = AppTheme.cyanAccent.withOpacity(0.4)
+      ..color = (isDark ? AppTheme.cyanAccent : const Color(0xFF0284C7)).withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 8.0
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      ..strokeWidth = 6.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
     canvas.drawPath(screenPath, screenGlowPaint);
 
     final Paint screenPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [
-          Color(0xFF38BDF8),
-          Color(0xFFE0F2FE),
-          Color(0xFF38BDF8),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height))
+      ..shader = (isDark
+              ? const LinearGradient(
+                  colors: [
+                    Color(0xFF38BDF8),
+                    Color(0xFFE0F2FE),
+                    Color(0xFF38BDF8),
+                  ],
+                )
+              : const LinearGradient(
+                  colors: [
+                    Color(0xFF0284C7),
+                    Color(0xFF0EA5E9),
+                    Color(0xFF0284C7),
+                  ],
+                ))
+          .createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeWidth = 3.5;
@@ -65,5 +84,6 @@ class CurvedScreenPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CurvedScreenPainter oldDelegate) =>
+      oldDelegate.isDark != isDark;
 }

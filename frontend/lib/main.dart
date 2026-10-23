@@ -14,15 +14,22 @@ class CinezaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Cineza Cinemas - Premium Movie Ticketing',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const HomeScreen(),
-        '/movie-details': (context) => const MovieDetailsScreen(),
-        '/seat-selection': (context) => const SeatSelectionScreen(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, currentMode, _) {
+        return MaterialApp(
+          title: 'Cineza Cinemas - Premium Movie Ticketing',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: currentMode,
+          initialRoute: '/',
+          routes: {
+            '/': (context) => const HomeScreen(),
+            '/movie-details': (context) => const MovieDetailsScreen(),
+            '/seat-selection': (context) => const SeatSelectionScreen(),
+          },
+        );
       },
     );
   }

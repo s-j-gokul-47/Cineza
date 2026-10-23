@@ -71,9 +71,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ThemeController.isDark(context);
+    final activePrimary = AppTheme.getPrimary(isDark);
+
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.getBackground(isDark),
       appBar: AppBar(
+        backgroundColor: AppTheme.getSurface(isDark),
         titleSpacing: 20,
         title: Row(
           children: [
@@ -81,8 +85,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppTheme.primary, AppTheme.accent],
+                gradient: LinearGradient(
+                  colors: [activePrimary, AppTheme.accent],
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -97,13 +101,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'CINEMAS',
               style: TextStyle(
-                fontWeight: FontWeight.w300,
+                fontWeight: FontWeight.w400,
                 fontSize: 14,
                 letterSpacing: 3.0,
-                color: AppTheme.textSecondary,
+                color: AppTheme.getTextSecondary(isDark),
               ),
             ),
 
@@ -119,11 +123,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: TextField(
                       controller: _searchController,
                       onChanged: (_) => _filterMovies(),
-                      style: const TextStyle(fontSize: 13),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.getTextPrimary(isDark),
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search movies, genres, actors...',
-                        hintStyle: const TextStyle(fontSize: 13, color: AppTheme.textMuted),
-                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        hintStyle: TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.getTextMuted(isDark),
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          size: 20,
+                          color: AppTheme.getTextSecondary(isDark),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                         suffixIcon: _searchController.text.isNotEmpty
                             ? IconButton(
@@ -135,18 +149,18 @@ class _HomeScreenState extends State<HomeScreen> {
                               )
                             : null,
                         filled: true,
-                        fillColor: AppTheme.surfaceLight,
+                        fillColor: AppTheme.getSurfaceLight(isDark),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppTheme.surfaceBorder),
+                          borderSide: BorderSide(color: AppTheme.getSurfaceBorder(isDark)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppTheme.surfaceBorder),
+                          borderSide: BorderSide(color: AppTheme.getSurfaceBorder(isDark)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: const BorderSide(color: AppTheme.primary, width: 1.5),
+                          borderSide: BorderSide(color: activePrimary, width: 1.5),
                         ),
                       ),
                     ),
@@ -159,27 +173,54 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          // Theme Toggle Button (Dark Mode / Bright Mode)
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.getSurfaceLight(isDark),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
+            ),
+            child: IconButton(
+              icon: Icon(
+                isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                color: activePrimary,
+                size: 20,
+              ),
+              tooltip: isDark ? 'Switch to Bright Mode' : 'Switch to Dark Mode',
+              onPressed: () {
+                ThemeController.toggleTheme();
+              },
+            ),
+          ),
+
+          const SizedBox(width: 8),
+
           // City Selector Dropdown
           if (_cities.isNotEmpty)
             Container(
               margin: const EdgeInsets.only(right: 20, top: 8, bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceLight,
+                color: AppTheme.getSurfaceLight(isDark),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.surfaceBorder),
+                border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<City>(
                   value: _selectedCity,
-                  dropdownColor: AppTheme.surface,
-                  icon: const Icon(Icons.location_on_rounded, color: AppTheme.primary, size: 18),
+                  dropdownColor: AppTheme.getSurface(isDark),
+                  icon: Icon(Icons.location_on_rounded, color: activePrimary, size: 18),
                   items: _cities.map((city) {
                     return DropdownMenuItem<City>(
                       value: city,
                       child: Text(
                         '${city.name}, ${city.state}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.getTextPrimary(isDark),
+                        ),
                       ),
                     );
                   }).toList(),
@@ -195,12 +236,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primary),
+          ? Center(
+              child: CircularProgressIndicator(color: activePrimary),
             )
           : RefreshIndicator(
               onRefresh: _filterMovies,
-              color: AppTheme.primary,
+              color: activePrimary,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Column(
@@ -215,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         itemCount: _genres.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        separatorBuilder: (_, _) => const SizedBox(width: 8),
                         itemBuilder: (context, index) {
                           final genre = _genres[index];
                           final isSelected = genre == _selectedGenre;
@@ -226,15 +267,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               setState(() => _selectedGenre = genre);
                               _filterMovies();
                             },
-                            selectedColor: AppTheme.primary,
-                            backgroundColor: AppTheme.surfaceLight,
+                            selectedColor: activePrimary,
+                            backgroundColor: AppTheme.getSurfaceLight(isDark),
                             labelStyle: TextStyle(
-                              color: isSelected ? Colors.black : AppTheme.textSecondary,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected
+                                  ? (isDark ? Colors.black : Colors.white)
+                                  : AppTheme.getTextSecondary(isDark),
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                               fontSize: 13,
                             ),
                             side: BorderSide(
-                              color: isSelected ? AppTheme.primary : AppTheme.surfaceBorder,
+                              color: isSelected
+                                  ? activePrimary
+                                  : AppTheme.getSurfaceBorder(isDark),
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(20),
@@ -247,7 +292,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 16),
 
                     // Featured Hero Banner
-                    if (_movies.isNotEmpty) _buildFeaturedHeroBanner(_movies.first),
+                    if (_movies.isNotEmpty) _buildFeaturedHeroBanner(_movies.first, isDark, activePrimary),
 
                     const SizedBox(height: 28),
 
@@ -263,26 +308,27 @@ class _HomeScreenState extends State<HomeScreen> {
                                 width: 4,
                                 height: 20,
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primary,
+                                  color: activePrimary,
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Text(
+                              Text(
                                 'Now Showing',
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: -0.5,
+                                  color: AppTheme.getTextPrimary(isDark),
                                 ),
                               ),
                             ],
                           ),
                           Text(
                             '${_movies.length} Movies Available',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: AppTheme.textMuted,
+                              color: AppTheme.getTextMuted(isDark),
                             ),
                           ),
                         ],
@@ -313,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSpacing: 20,
                             ),
                             itemBuilder: (context, index) {
-                              return _buildMovieCard(_movies[index]);
+                              return _buildMovieCard(_movies[index], isDark, activePrimary);
                             },
                           );
                         },
@@ -328,7 +374,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeaturedHeroBanner(Movie movie) {
+  Widget _buildFeaturedHeroBanner(Movie movie, bool isDark, Color activePrimary) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       height: 220,
@@ -340,7 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
             blurRadius: 15,
             offset: const Offset(0, 8),
           ),
@@ -353,8 +399,8 @@ class _HomeScreenState extends State<HomeScreen> {
             begin: Alignment.bottomCenter,
             end: Alignment.topCenter,
             colors: [
-              Colors.black.withOpacity(0.95),
-              Colors.black.withOpacity(0.4),
+              Colors.black.withValues(alpha: 0.95),
+              Colors.black.withValues(alpha: 0.4),
               Colors.transparent,
             ],
             stops: const [0.0, 0.65, 1.0],
@@ -370,13 +416,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary,
+                    color: activePrimary,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
+                  child: Text(
                     'FEATURED',
                     style: TextStyle(
-                      color: Colors.black,
+                      color: isDark ? Colors.black : Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 10,
                       letterSpacing: 1.0,
@@ -393,11 +439,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.star_rounded, size: 14, color: AppTheme.primary),
+                      Icon(Icons.star_rounded, size: 14, color: activePrimary),
                       const SizedBox(width: 4),
                       Text(
                         movie.imdbScore.toString(),
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ],
                   ),
@@ -437,6 +483,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.confirmation_num_rounded, size: 16),
                   label: const Text('Book Tickets', style: TextStyle(fontSize: 13)),
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: activePrimary,
+                    foregroundColor: isDark ? Colors.black : Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   ),
                 ),
@@ -448,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildMovieCard(Movie movie) {
+  Widget _buildMovieCard(Movie movie, bool isDark, Color activePrimary) {
     return GestureDetector(
       onTap: () {
         Navigator.pushNamed(
@@ -462,9 +510,18 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: AppTheme.getSurface(isDark),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.surfaceBorder),
+          border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
+          boxShadow: isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -478,10 +535,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   Image.network(
                     movie.posterUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: AppTheme.surfaceLight,
-                      child: const Center(
-                        child: Icon(Icons.movie_creation_outlined, color: Colors.white30, size: 40),
+                    errorBuilder: (_, _, _) => Container(
+                      color: AppTheme.getSurfaceLight(isDark),
+                      child: Icon(
+                        Icons.movie_creation_outlined,
+                        color: AppTheme.getTextMuted(isDark),
+                        size: 40,
                       ),
                     ),
                   ),
@@ -491,17 +550,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.75),
+                        color: Colors.black.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star_rounded, size: 12, color: AppTheme.primary),
+                          Icon(Icons.star_rounded, size: 12, color: activePrimary),
                           const SizedBox(width: 3),
                           Text(
                             movie.imdbScore.toString(),
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                         ],
                       ),
@@ -513,12 +572,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.accent.withOpacity(0.85),
+                        color: AppTheme.accent.withValues(alpha: 0.85),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         movie.rating,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
                   ),
@@ -536,16 +595,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     movie.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
+                      color: AppTheme.getTextPrimary(isDark),
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${movie.genre} • ${movie.durationFormatted}',
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
+                    style: TextStyle(
+                      color: AppTheme.getTextSecondary(isDark),
                       fontSize: 12,
                     ),
                   ),

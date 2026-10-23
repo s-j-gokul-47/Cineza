@@ -53,17 +53,20 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ThemeController.isDark(context);
     final bool isLowTime = _remainingSeconds < 120; // Under 2 mins
+    final activePrimary = AppTheme.getPrimary(isDark);
+    final textColor = AppTheme.getTextPrimary(isDark);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: isLowTime
-            ? AppTheme.danger.withOpacity(0.15)
-            : AppTheme.primary.withOpacity(0.12),
+            ? AppTheme.danger.withValues(alpha: 0.15)
+            : activePrimary.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isLowTime ? AppTheme.danger : AppTheme.primary,
+          color: isLowTime ? AppTheme.danger : activePrimary,
           width: 1.5,
         ),
       ),
@@ -73,14 +76,14 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
           Icon(
             Icons.timer_outlined,
             size: 20,
-            color: isLowTime ? AppTheme.danger : AppTheme.primary,
+            color: isLowTime ? AppTheme.danger : activePrimary,
           ),
           const SizedBox(width: 8),
           Text(
             'Seats locked for checkout: ',
             style: TextStyle(
               fontSize: 13,
-              color: isLowTime ? AppTheme.danger : AppTheme.textPrimary,
+              color: isLowTime ? AppTheme.danger : textColor,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -90,7 +93,7 @@ class _CountdownTimerWidgetState extends State<CountdownTimerWidget> {
               fontSize: 15,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.1,
-              color: isLowTime ? AppTheme.danger : AppTheme.primary,
+              color: isLowTime ? AppTheme.danger : activePrimary,
             ),
           ),
         ],

@@ -14,6 +14,8 @@ class SeatWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ThemeController.isDark(context);
+
     Color seatBg;
     Color borderColor;
     IconData? overlayIcon;
@@ -22,7 +24,7 @@ class SeatWidget extends StatelessWidget {
     switch (seat.status) {
       case SeatStatusType.selected:
         seatBg = AppTheme.seatSelected;
-        borderColor = AppTheme.primaryGlow;
+        borderColor = isDark ? AppTheme.primaryGlow : AppTheme.lightPrimary;
         break;
       case SeatStatusType.locked:
         seatBg = AppTheme.seatLocked;
@@ -31,20 +33,34 @@ class SeatWidget extends StatelessWidget {
         isClickable = false;
         break;
       case SeatStatusType.booked:
-        seatBg = AppTheme.seatBooked;
-        borderColor = Colors.white10;
+        seatBg = isDark ? AppTheme.darkSeatBooked : AppTheme.lightSeatBooked;
+        borderColor = isDark ? Colors.white10 : Colors.black12;
         isClickable = false;
         break;
       case SeatStatusType.available:
-        if (seat.seatType == 'VIP') {
-          seatBg = const Color(0xFF2E2440);
-          borderColor = AppTheme.accent.withOpacity(0.5);
-        } else if (seat.seatType == 'PREMIUM') {
-          seatBg = const Color(0xFF222B38);
-          borderColor = AppTheme.cyanAccent.withOpacity(0.4);
+        if (isDark) {
+          if (seat.seatType == 'VIP') {
+            seatBg = const Color(0xFF2E2440);
+            borderColor = AppTheme.accent.withValues(alpha: 0.5);
+          } else if (seat.seatType == 'PREMIUM') {
+            seatBg = const Color(0xFF222B38);
+            borderColor = AppTheme.cyanAccent.withValues(alpha: 0.4);
+          } else {
+            seatBg = AppTheme.darkSeatAvailable;
+            borderColor = AppTheme.darkSeatAvailableBorder;
+          }
         } else {
-          seatBg = AppTheme.seatAvailable;
-          borderColor = AppTheme.seatAvailableBorder;
+          // Bright / Light mode colors
+          if (seat.seatType == 'VIP') {
+            seatBg = const Color(0xFFF3E8FF); // soft purple
+            borderColor = const Color(0xFFC084FC);
+          } else if (seat.seatType == 'PREMIUM') {
+            seatBg = const Color(0xFFE0F2FE); // soft sky blue
+            borderColor = const Color(0xFF7DD3FC);
+          } else {
+            seatBg = const Color(0xFFF1F5F9); // slate 100
+            borderColor = const Color(0xFFCBD5E1);
+          }
         }
         break;
     }
@@ -53,13 +69,22 @@ class SeatWidget extends StatelessWidget {
         '${seat.status == SeatStatusType.locked ? ' (Locked in checkout)' : ''}'
         '${seat.status == SeatStatusType.booked ? ' (Sold)' : ''}';
 
+    Color textColor;
+    if (seat.status == SeatStatusType.selected) {
+      textColor = Colors.black87;
+    } else if (seat.status == SeatStatusType.booked) {
+      textColor = isDark ? Colors.white24 : Colors.black26;
+    } else {
+      textColor = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    }
+
     return Tooltip(
       message: tooltipMsg,
       waitDuration: const Duration(milliseconds: 300),
       child: InkWell(
         onTap: isClickable ? onTap : null,
         borderRadius: BorderRadius.circular(6),
-        splashColor: AppTheme.primary.withOpacity(0.3),
+        splashColor: AppTheme.primary.withValues(alpha: 0.3),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: 30,
@@ -75,7 +100,7 @@ class SeatWidget extends StatelessWidget {
             boxShadow: seat.status == SeatStatusType.selected
                 ? [
                     BoxShadow(
-                      color: AppTheme.primary.withOpacity(0.4),
+                      color: AppTheme.primary.withValues(alpha: 0.4),
                       blurRadius: 8,
                       spreadRadius: 1,
                     )
@@ -87,7 +112,7 @@ class SeatWidget extends StatelessWidget {
                 ? Icon(
                     overlayIcon,
                     size: 14,
-                    color: Colors.white70,
+                    color: Colors.white,
                   )
                 : Text(
                     seat.seatNumber.toString(),
@@ -95,12 +120,8 @@ class SeatWidget extends StatelessWidget {
                       fontSize: 10,
                       fontWeight: seat.status == SeatStatusType.selected
                           ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: seat.status == SeatStatusType.selected
-                          ? Colors.black87
-                          : (seat.status == SeatStatusType.booked
-                              ? Colors.white24
-                              : AppTheme.textPrimary),
+                          : FontWeight.w500,
+                      color: textColor,
                     ),
                   ),
           ),

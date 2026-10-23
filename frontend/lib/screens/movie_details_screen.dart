@@ -63,6 +63,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ThemeController.isDark(context);
+    final activePrimary = AppTheme.getPrimary(isDark);
     final timeFormat = DateFormat('h:mm a');
 
     // Group shows by Theatre
@@ -72,24 +74,57 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.getBackground(isDark),
       body: CustomScrollView(
         slivers: [
           // Collapsible Backdrop App Bar
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
+            backgroundColor: AppTheme.getSurface(isDark),
             leading: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
                   shape: BoxShape.circle,
+                  boxShadow: isDark
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 6,
+                          ),
+                        ],
                 ),
-                child: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 16,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
               ),
               onPressed: () => Navigator.pop(context),
             ),
+            actions: [
+              Container(
+                margin: const EdgeInsets.only(right: 16),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    color: activePrimary,
+                    size: 20,
+                  ),
+                  tooltip: isDark ? 'Switch to Bright Mode' : 'Switch to Dark Mode',
+                  onPressed: () {
+                    ThemeController.toggleTheme();
+                  },
+                ),
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -97,7 +132,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   Image.network(
                     _movie.backdropUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(color: AppTheme.surfaceLight),
+                    errorBuilder: (_, _, _) => Container(color: AppTheme.getSurfaceLight(isDark)),
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -105,11 +140,11 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          AppTheme.background,
-                          AppTheme.background.withOpacity(0.5),
+                          AppTheme.getBackground(isDark),
+                          AppTheme.getBackground(isDark).withValues(alpha: isDark ? 0.6 : 0.75),
                           Colors.transparent,
                         ],
-                        stops: const [0.0, 0.5, 1.0],
+                        stops: const [0.0, 0.55, 1.0],
                       ),
                     ),
                   ),
@@ -145,35 +180,41 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                           children: [
                             Text(
                               _movie.title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -0.3,
+                                color: AppTheme.getTextPrimary(isDark),
                               ),
                             ),
                             const SizedBox(height: 6),
                             Row(
                               children: [
-                                const Icon(Icons.star_rounded, size: 18, color: AppTheme.primary),
+                                Icon(Icons.star_rounded, size: 18, color: activePrimary),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${_movie.imdbScore} / 10',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
+                                    color: AppTheme.getTextPrimary(isDark),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.surfaceLight,
+                                    color: AppTheme.getSurfaceLight(isDark),
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: AppTheme.surfaceBorder),
+                                    border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
                                   ),
                                   child: Text(
                                     _movie.rating,
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.getTextPrimary(isDark),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -181,8 +222,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                             const SizedBox(height: 8),
                             Text(
                               '${_movie.genre} • ${_movie.durationFormatted} • ${_movie.language}',
-                              style: const TextStyle(
-                                color: AppTheme.textSecondary,
+                              style: TextStyle(
+                                color: AppTheme.getTextSecondary(isDark),
                                 fontSize: 13,
                               ),
                             ),
@@ -195,33 +236,35 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   const SizedBox(height: 20),
 
                   // Synopsis
-                  const Text(
+                  Text(
                     'Synopsis',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: AppTheme.getTextPrimary(isDark),
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     _movie.synopsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
+                    style: TextStyle(
+                      color: AppTheme.getTextSecondary(isDark),
                       fontSize: 14,
                       height: 1.5,
                     ),
                   ),
 
                   const SizedBox(height: 24),
-                  const Divider(color: AppTheme.surfaceBorder),
+                  Divider(color: AppTheme.getSurfaceBorder(isDark)),
                   const SizedBox(height: 16),
 
                   // Date Selector
-                  const Text(
+                  Text(
                     'Select Date',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: AppTheme.getTextPrimary(isDark),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -231,7 +274,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _dates.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
                       itemBuilder: (context, index) {
                         final date = _dates[index];
                         final isSelected = index == _selectedDateIndex;
@@ -244,10 +287,10 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                             duration: const Duration(milliseconds: 200),
                             width: 60,
                             decoration: BoxDecoration(
-                              color: isSelected ? AppTheme.primary : AppTheme.surfaceLight,
+                              color: isSelected ? activePrimary : AppTheme.getSurfaceLight(isDark),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isSelected ? AppTheme.primary : AppTheme.surfaceBorder,
+                                color: isSelected ? activePrimary : AppTheme.getSurfaceBorder(isDark),
                               ),
                             ),
                             child: Column(
@@ -258,7 +301,9 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                   style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
-                                    color: isSelected ? Colors.black87 : AppTheme.textMuted,
+                                    color: isSelected
+                                        ? (isDark ? Colors.black87 : Colors.white)
+                                        : AppTheme.getTextMuted(isDark),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -267,7 +312,9 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                   style: TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.black : AppTheme.textPrimary,
+                                    color: isSelected
+                                        ? (isDark ? Colors.black : Colors.white)
+                                        : AppTheme.getTextPrimary(isDark),
                                   ),
                                 ),
                               ],
@@ -281,33 +328,35 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   const SizedBox(height: 24),
 
                   // Theatres & Showtimes
-                  const Text(
+                  Text(
                     'Theatres & Showtimes',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
+                      color: AppTheme.getTextPrimary(isDark),
                     ),
                   ),
                   const SizedBox(height: 12),
 
                   if (_isLoading)
-                    const Center(
+                    Center(
                       child: Padding(
-                        padding: EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(color: AppTheme.primary),
+                        padding: const EdgeInsets.all(32.0),
+                        child: CircularProgressIndicator(color: activePrimary),
                       ),
                     )
                   else if (showsByTheatre.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: AppTheme.surface,
+                        color: AppTheme.getSurface(isDark),
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
                           'No showtimes available for the selected date.',
-                          style: TextStyle(color: AppTheme.textSecondary),
+                          style: TextStyle(color: AppTheme.getTextSecondary(isDark)),
                         ),
                       ),
                     )
@@ -320,23 +369,33 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                         margin: const EdgeInsets.only(bottom: 16),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppTheme.surface,
+                          color: AppTheme.getSurface(isDark),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.surfaceBorder),
+                          border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
+                          boxShadow: isDark
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
-                                const Icon(Icons.theater_comedy_rounded, color: AppTheme.primary, size: 20),
+                                Icon(Icons.theater_comedy_rounded, color: activePrimary, size: 20),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     theatreName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
+                                      color: AppTheme.getTextPrimary(isDark),
                                     ),
                                   ),
                                 ),
@@ -345,7 +404,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                             const SizedBox(height: 4),
                             Text(
                               theatreShows.first.theatreAddress,
-                              style: const TextStyle(color: AppTheme.textMuted, fontSize: 12),
+                              style: TextStyle(color: AppTheme.getTextMuted(isDark), fontSize: 12),
                             ),
                             const SizedBox(height: 14),
 
@@ -369,22 +428,22 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.surfaceLight,
+                                      color: AppTheme.getSurfaceLight(isDark),
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
                                         color: show.screenType == 'IMAX'
-                                            ? AppTheme.cyanAccent.withOpacity(0.5)
-                                            : AppTheme.surfaceBorder,
+                                            ? AppTheme.cyanAccent.withValues(alpha: 0.5)
+                                            : AppTheme.getSurfaceBorder(isDark),
                                       ),
                                     ),
                                     child: Column(
                                       children: [
                                         Text(
                                           timeFormat.format(show.startTime),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
-                                            color: AppTheme.primary,
+                                            color: activePrimary,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -394,8 +453,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                             color: show.screenType == 'IMAX'
-                                                ? AppTheme.cyanAccent
-                                                : AppTheme.textMuted,
+                                                ? (isDark ? AppTheme.cyanAccent : const Color(0xFF0284C7))
+                                                : AppTheme.getTextMuted(isDark),
                                           ),
                                         ),
                                       ],

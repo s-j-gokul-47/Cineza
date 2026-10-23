@@ -15,6 +15,8 @@ class BookingSuccessDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ThemeController.isDark(context);
+    final activePrimary = AppTheme.getPrimary(isDark);
     final dateFormat = DateFormat('EEE, MMM d, yyyy • h:mm a');
 
     return Dialog(
@@ -23,12 +25,12 @@ class BookingSuccessDialog extends StatelessWidget {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 420),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: AppTheme.getSurface(isDark),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.primary.withOpacity(0.4), width: 1.5),
+          border: Border.all(color: activePrimary.withValues(alpha: 0.4), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primary.withOpacity(0.15),
+              color: activePrimary.withValues(alpha: 0.15),
               blurRadius: 30,
               spreadRadius: 2,
             ),
@@ -43,8 +45,8 @@ class BookingSuccessDialog extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.primary.withOpacity(0.25),
-                    AppTheme.accent.withOpacity(0.15),
+                    activePrimary.withValues(alpha: 0.25),
+                    AppTheme.accent.withValues(alpha: 0.15),
                   ],
                 ),
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
@@ -54,11 +56,11 @@ class BookingSuccessDialog extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.primary,
+                      color: activePrimary,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withOpacity(0.5),
+                          color: activePrimary.withValues(alpha: 0.5),
                           blurRadius: 10,
                         ),
                       ],
@@ -70,19 +72,19 @@ class BookingSuccessDialog extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Booking Confirmed!',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+                            color: AppTheme.getTextPrimary(isDark),
                           ),
                         ),
                         Text(
                           'Ref: ${receipt.bookingReference}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppTheme.primary,
+                            color: activePrimary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -101,36 +103,38 @@ class BookingSuccessDialog extends StatelessWidget {
                 children: [
                   Text(
                     receipt.movieTitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.3,
+                      color: AppTheme.getTextPrimary(isDark),
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     '${receipt.theatreName} • ${receipt.screenName}',
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
+                    style: TextStyle(
+                      color: AppTheme.getTextSecondary(isDark),
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today_rounded, size: 16, color: AppTheme.primary),
+                      Icon(Icons.calendar_today_rounded, size: 16, color: activePrimary),
                       const SizedBox(width: 8),
                       Text(
                         dateFormat.format(receipt.showTime),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
+                          color: AppTheme.getTextPrimary(isDark),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Divider(color: AppTheme.surfaceBorder),
+                  Divider(color: AppTheme.getSurfaceBorder(isDark)),
                   const SizedBox(height: 12),
 
                   // Seats and Amount
@@ -140,10 +144,10 @@ class BookingSuccessDialog extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'SEATS',
                             style: TextStyle(
-                              color: AppTheme.textMuted,
+                              color: AppTheme.getTextMuted(isDark),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.1,
@@ -157,16 +161,16 @@ class BookingSuccessDialog extends StatelessWidget {
                                   (label) => Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: AppTheme.primary.withOpacity(0.2),
+                                      color: activePrimary.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: AppTheme.primary, width: 1),
+                                      border: Border.all(color: activePrimary, width: 1),
                                     ),
                                     child: Text(
                                       label,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
-                                        color: AppTheme.primary,
+                                        color: activePrimary,
                                       ),
                                     ),
                                   ),
@@ -178,10 +182,10 @@ class BookingSuccessDialog extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Text(
+                          Text(
                             'TOTAL PAID',
                             style: TextStyle(
-                              color: AppTheme.textMuted,
+                              color: AppTheme.getTextMuted(isDark),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.1,
@@ -190,10 +194,10 @@ class BookingSuccessDialog extends StatelessWidget {
                           const SizedBox(height: 4),
                           Text(
                             '\$${receipt.totalAmount.toStringAsFixed(2)}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.primary,
+                              color: activePrimary,
                             ),
                           ),
                         ],
@@ -208,8 +212,9 @@ class BookingSuccessDialog extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? Colors.white : const Color(0xFFF1F5F9),
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
                     ),
                     child: Column(
                       children: [
