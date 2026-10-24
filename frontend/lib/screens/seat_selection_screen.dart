@@ -399,20 +399,33 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           backgroundColor: AppTheme.getBackground(isDark),
       appBar: AppBar(
         backgroundColor: AppTheme.getSurface(isDark),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              '${_movie.title} (${_movie.rating})',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.getTextPrimary(isDark),
-              ),
+            Image.asset(
+              'assets/images/cineza_logo_transparent.png',
+              width: 26,
+              height: 26,
+              fit: BoxFit.contain,
             ),
-            Text(
-              '${_show.theatreName} • ${timeFormat.format(_show.startTime)}',
-              style: TextStyle(fontSize: 12, color: AppTheme.getTextSecondary(isDark)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_movie.title} (${_movie.rating})',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.getTextPrimary(isDark),
+                    ),
+                  ),
+                  Text(
+                    '${_show.theatreName} • ${timeFormat.format(_show.startTime)}',
+                    style: TextStyle(fontSize: 12, color: AppTheme.getTextSecondary(isDark)),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

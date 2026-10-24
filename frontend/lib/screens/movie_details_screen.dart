@@ -146,7 +146,19 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   Image.network(
                     _movie.backdropUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(color: AppTheme.getSurfaceLight(isDark)),
+                    errorBuilder: (_, _, _) => Container(
+                      color: AppTheme.getSurfaceLight(isDark),
+                      alignment: Alignment.center,
+                      child: Opacity(
+                        opacity: isDark ? 0.25 : 0.35,
+                        child: Image.asset(
+                          'assets/images/cineza_logo_transparent.png',
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -185,6 +197,21 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                           width: 85,
                           height: 125,
                           fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            width: 85,
+                            height: 125,
+                            color: AppTheme.getSurfaceLight(isDark),
+                            alignment: Alignment.center,
+                            child: Opacity(
+                              opacity: isDark ? 0.35 : 0.45,
+                              child: Image.asset(
+                                'assets/images/cineza_logo_transparent.png',
+                                width: 36,
+                                height: 36,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),

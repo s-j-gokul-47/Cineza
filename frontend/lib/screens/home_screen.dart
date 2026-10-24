@@ -93,43 +93,55 @@ class _HomeScreenState extends State<HomeScreen> {
             titleSpacing: 20,
             title: Row(
               children: [
-                // Brand Logo
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDark
-                          ? [activePrimary, AppTheme.accent]
-                          : [const Color(0xFF0062FF), const Color(0xFF00C8FF)],
+                // Brand Logo with Cineza Ticket Icon
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      'assets/images/cineza_logo_transparent.png',
+                      height: 32,
+                      width: 32,
+                      fit: BoxFit.contain,
                     ),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isDark ? activePrimary : const Color(0xFF0062FF)).withValues(alpha: 0.35),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark
+                              ? [activePrimary, AppTheme.accent]
+                              : [const Color(0xFF0062FF), const Color(0xFF00C8FF)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isDark ? activePrimary : const Color(0xFF0062FF)).withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    'CINEZA',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                      letterSpacing: 2.0,
-                      color: isDark ? Colors.black : Colors.white,
+                      child: Text(
+                        'CINEZA',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          letterSpacing: 2.0,
+                          color: isDark ? Colors.black : Colors.white,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'CINEMAS',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    letterSpacing: 3.0,
-                    color: isDark ? AppTheme.getTextSecondary(isDark) : const Color(0xFF0A1B39),
-                  ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'CINEMAS',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        letterSpacing: 3.0,
+                        color: isDark ? AppTheme.getTextSecondary(isDark) : const Color(0xFF0A1B39),
+                      ),
+                    ),
+                  ],
                 ),
 
                 const SizedBox(width: 24),
@@ -590,12 +602,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   Image.network(
                     movie.posterUrl,
                     fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: AppTheme.getSurfaceLight(isDark),
+                        alignment: Alignment.center,
+                        child: Opacity(
+                          opacity: isDark ? 0.35 : 0.45,
+                          child: Image.asset(
+                            'assets/images/cineza_logo_transparent.png',
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      );
+                    },
                     errorBuilder: (_, _, _) => Container(
                       color: AppTheme.getSurfaceLight(isDark),
-                      child: Icon(
-                        Icons.movie_creation_outlined,
-                        color: AppTheme.getTextMuted(isDark),
-                        size: 40,
+                      alignment: Alignment.center,
+                      child: Opacity(
+                        opacity: isDark ? 0.35 : 0.45,
+                        child: Image.asset(
+                          'assets/images/cineza_logo_transparent.png',
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
                   ),

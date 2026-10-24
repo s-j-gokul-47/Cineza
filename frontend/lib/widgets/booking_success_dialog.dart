@@ -91,6 +91,13 @@ class BookingSuccessDialog extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Image.asset(
+                    'assets/images/cineza_logo_transparent.png',
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.contain,
+                  ),
                 ],
               ),
             ),
