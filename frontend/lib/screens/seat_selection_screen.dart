@@ -35,6 +35,23 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   final TextEditingController _phoneController = TextEditingController(text: '+1-555-0199');
 
   @override
+  void initState() {
+    super.initState();
+    ThemeController.themeMode.addListener(_onThemeChanged);
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    ThemeController.themeMode.removeListener(_onThemeChanged);
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
@@ -371,12 +388,15 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = ThemeController.isDark(context);
-    final activePrimary = AppTheme.getPrimary(isDark);
-    final timeFormat = DateFormat('EEE, MMM d • h:mm a');
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, currentMode, _) {
+        final isDark = currentMode == ThemeMode.dark;
+        final activePrimary = AppTheme.getPrimary(isDark);
+        final timeFormat = DateFormat('EEE, MMM d • h:mm a');
 
-    return Scaffold(
-      backgroundColor: AppTheme.getBackground(isDark),
+        return Scaffold(
+          backgroundColor: AppTheme.getBackground(isDark),
       appBar: AppBar(
         backgroundColor: AppTheme.getSurface(isDark),
         title: Column(
@@ -400,7 +420,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           // Theme Toggle
           IconButton(
             icon: Icon(
-              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+              isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
               color: activePrimary,
               size: 20,
             ),
@@ -497,6 +517,8 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                 _buildBottomTray(isDark, activePrimary),
               ],
             ),
+        );
+      },
     );
   }
 

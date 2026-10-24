@@ -27,8 +27,19 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   @override
   void initState() {
     super.initState();
+    ThemeController.themeMode.addListener(_onThemeChanged);
     final today = DateTime.now();
     _dates = List.generate(5, (index) => today.add(Duration(days: index)));
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    ThemeController.themeMode.removeListener(_onThemeChanged);
+    super.dispose();
   }
 
   @override
@@ -63,18 +74,21 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = ThemeController.isDark(context);
-    final activePrimary = AppTheme.getPrimary(isDark);
-    final timeFormat = DateFormat('h:mm a');
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, currentMode, _) {
+        final isDark = currentMode == ThemeMode.dark;
+        final activePrimary = AppTheme.getPrimary(isDark);
+        final timeFormat = DateFormat('h:mm a');
 
-    // Group shows by Theatre
-    final Map<String, List<ShowItem>> showsByTheatre = {};
-    for (final show in _shows) {
-      showsByTheatre.putIfAbsent(show.theatreName, () => []).add(show);
-    }
+        // Group shows by Theatre
+        final Map<String, List<ShowItem>> showsByTheatre = {};
+        for (final show in _shows) {
+          showsByTheatre.putIfAbsent(show.theatreName, () => []).add(show);
+        }
 
-    return Scaffold(
-      backgroundColor: AppTheme.getBackground(isDark),
+        return Scaffold(
+          backgroundColor: AppTheme.getBackground(isDark),
       body: CustomScrollView(
         slivers: [
           // Collapsible Backdrop App Bar
@@ -114,7 +128,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                 ),
                 child: IconButton(
                   icon: Icon(
-                    isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
                     color: activePrimary,
                     size: 20,
                   ),
@@ -328,15 +342,29 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   const SizedBox(height: 24),
 
                   // Theatres & Showtimes
-                  Text(
-                    'Theatres & Showtimes',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.getTextPrimary(isDark),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          color: activePrimary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Theatres & Showtimes',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                          color: AppTheme.getTextPrimary(isDark),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
                   if (_isLoading)
                     Center(
@@ -475,6 +503,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
           ),
         ],
       ),
+    );
+      },
     );
   }
 }

@@ -18,48 +18,52 @@ class ThemeController {
 }
 
 class AppTheme {
-  // Cinematic Dark Palette
-  static const Color darkBackground = Color(0xFF0C0D14);
-  static const Color darkSurface = Color(0xFF141622);
-  static const Color darkSurfaceLight = Color(0xFF1E2132);
-  static const Color darkSurfaceBorder = Color(0xFF2B2E42);
+  // Magic Patterns Dashboard Cinematic Dark Palette
+  static const Color darkBackground = Color(0xFF090A0F);
+  static const Color darkSurface = Color(0xFF141722);
+  static const Color darkSurfaceLight = Color(0xFF1E2336);
+  static const Color darkSurfaceBorder = Color(0xFF262B40);
 
-  // Bright / Light Mode Palette
-  static const Color lightBackground = Color(0xFFF8FAFC);
-  static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color lightSurfaceLight = Color(0xFFF1F5F9);
-  static const Color lightSurfaceBorder = Color(0xFFE2E8F0);
+  // Bright / Light Mode Palette: Crisp Blue & White
+  static const Color lightBackground = Color(0xFFF3F7FD); // Soft ice-white with sky tint
+  static const Color lightSurface = Color(0xFFFFFFFF); // Pure brilliant white
+  static const Color lightSurfaceLight = Color(0xFFE8F1FC); // Light ice blue for search, chips, dropdowns
+  static const Color lightSurfaceBorder = Color(0xFFCFE0F8); // Clean sky blue border
 
   // Accents
-  static const Color primary = Color(0xFFFFB800); // Amber Gold
-  static const Color lightPrimary = Color(0xFFD97706); // Rich Amber for bright mode
-  static const Color primaryGlow = Color(0xFFFFD56B);
-  static const Color accent = Color(0xFF8B5CF6); // Neon Violet
-  static const Color cyanAccent = Color(0xFF06B6D4); // Cyber Cyan
-  static const Color danger = Color(0xFFEF4444); // Locked / Sold out Red
-  static const Color warning = Color(0xFFF59E0B); // Reserved / Locking Orange
-  static const Color success = Color(0xFF10B981); // Available Green
+  static const Color primary = Color(0xFF6366F1); // Indigo Primary for Dark mode
+  static const Color lightPrimary = Color(0xFF0062FF); // Vivid Royal Cinema Blue for Bright mode
+  static const Color primaryGlow = Color(0xFF818CF8);
+  static const Color lightPrimaryGlow = Color(0xFF60A5FA);
+  static const Color accent = Color(0xFF8B5CF6); // Neon Violet for Dark mode
+  static const Color lightAccent = Color(0xFF0091FF); // Bright Electric Cyan/Blue for Bright mode
+  static const Color cyanAccent = Color(0xFF06B6D4);
+  static const Color goldAccent = Color(0xFFFFB800);
+  static const Color danger = Color(0xFFEF4444);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color success = Color(0xFF10B981);
 
   // Dark Text Colors
   static const Color darkTextPrimary = Color(0xFFF8FAFC);
   static const Color darkTextSecondary = Color(0xFF94A3B8);
   static const Color darkTextMuted = Color(0xFF64748B);
 
-  // Light Text Colors
-  static const Color lightTextPrimary = Color(0xFF0F172A);
-  static const Color lightTextSecondary = Color(0xFF475569);
-  static const Color lightTextMuted = Color(0xFF94A3B8);
+  // Light Text Colors (Blue & White palette)
+  static const Color lightTextPrimary = Color(0xFF0A1B39); // Deep midnight sapphire navy
+  static const Color lightTextSecondary = Color(0xFF2C4469); // Slate navy
+  static const Color lightTextMuted = Color(0xFF6B82A6); // Soft blue-gray
 
   // Seat Status Colors
-  static const Color darkSeatAvailable = Color(0xFF282C3F);
-  static const Color darkSeatAvailableBorder = Color(0xFF404664);
-  static const Color lightSeatAvailable = Color(0xFFE2E8F0);
-  static const Color lightSeatAvailableBorder = Color(0xFFCBD5E1);
+  static const Color darkSeatAvailable = Color(0xFF1E2336);
+  static const Color darkSeatAvailableBorder = Color(0xFF333A56);
+  static const Color lightSeatAvailable = Color(0xFFE2EBF8);
+  static const Color lightSeatAvailableBorder = Color(0xFFB9D3F4);
 
-  static const Color seatSelected = Color(0xFFFFB800);
-  static const Color seatLocked = Color(0xFFF97316); // Locked by another in Redis
-  static const Color darkSeatBooked = Color(0xFF1C1E2A); // Sold / Booked
-  static const Color lightSeatBooked = Color(0xFFE2E8F0);
+  static const Color seatSelected = Color(0xFF6366F1);
+  static const Color lightSeatSelected = Color(0xFF0062FF);
+  static const Color seatLocked = Color(0xFFF97316); 
+  static const Color darkSeatBooked = Color(0xFF12151E);
+  static const Color lightSeatBooked = Color(0xFFD6DFEC);
 
   // Dynamic getters based on brightness
   static Color getBackground(bool isDark) => isDark ? darkBackground : lightBackground;
@@ -70,6 +74,7 @@ class AppTheme {
   static Color getTextSecondary(bool isDark) => isDark ? darkTextSecondary : lightTextSecondary;
   static Color getTextMuted(bool isDark) => isDark ? darkTextMuted : lightTextMuted;
   static Color getPrimary(bool isDark) => isDark ? primary : lightPrimary;
+  static Color getAccent(bool isDark) => isDark ? accent : lightAccent;
 
   // --- DARK THEME ---
   static ThemeData get darkTheme {
@@ -111,7 +116,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primary,
-          foregroundColor: Colors.black,
+          foregroundColor: Colors.white,
           elevation: 4,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(

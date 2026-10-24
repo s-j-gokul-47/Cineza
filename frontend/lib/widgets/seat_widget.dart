@@ -23,8 +23,8 @@ class SeatWidget extends StatelessWidget {
 
     switch (seat.status) {
       case SeatStatusType.selected:
-        seatBg = AppTheme.seatSelected;
-        borderColor = isDark ? AppTheme.primaryGlow : AppTheme.lightPrimary;
+        seatBg = isDark ? AppTheme.seatSelected : const Color(0xFF0062FF);
+        borderColor = isDark ? AppTheme.primaryGlow : const Color(0xFF0047BA);
         break;
       case SeatStatusType.locked:
         seatBg = AppTheme.seatLocked;
@@ -50,16 +50,16 @@ class SeatWidget extends StatelessWidget {
             borderColor = AppTheme.darkSeatAvailableBorder;
           }
         } else {
-          // Bright / Light mode colors
+          // Bright / Light mode colors (Blue & White palette)
           if (seat.seatType == 'VIP') {
-            seatBg = const Color(0xFFF3E8FF); // soft purple
-            borderColor = const Color(0xFFC084FC);
+            seatBg = const Color(0xFFE8F1FC); // soft sky-ice blue
+            borderColor = const Color(0xFF0062FF);
           } else if (seat.seatType == 'PREMIUM') {
-            seatBg = const Color(0xFFE0F2FE); // soft sky blue
-            borderColor = const Color(0xFF7DD3FC);
+            seatBg = const Color(0xFFF0F6FF); // light ice blue
+            borderColor = const Color(0xFF70B6FF);
           } else {
-            seatBg = const Color(0xFFF1F5F9); // slate 100
-            borderColor = const Color(0xFFCBD5E1);
+            seatBg = Colors.white; // crisp white
+            borderColor = const Color(0xFFCFE0F8);
           }
         }
         break;
@@ -71,7 +71,7 @@ class SeatWidget extends StatelessWidget {
 
     Color textColor;
     if (seat.status == SeatStatusType.selected) {
-      textColor = Colors.black87;
+      textColor = isDark ? Colors.black87 : Colors.white;
     } else if (seat.status == SeatStatusType.booked) {
       textColor = isDark ? Colors.white24 : Colors.black26;
     } else {
