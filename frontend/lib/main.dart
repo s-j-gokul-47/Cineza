@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/movie_details_screen.dart';
 import 'screens/seat_selection_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const CinezaApp());
 }
+
 
 class CinezaApp extends StatelessWidget {
   const CinezaApp({super.key});
@@ -26,6 +35,7 @@ class CinezaApp extends StatelessWidget {
           initialRoute: '/',
           routes: {
             '/': (context) => const HomeScreen(),
+            '/login': (context) => const LoginScreen(),
             '/movie-details': (context) => const MovieDetailsScreen(),
             '/seat-selection': (context) => const SeatSelectionScreen(),
           },

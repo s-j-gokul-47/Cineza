@@ -1,46 +1,154 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Cineza movie experience">
 
-  <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="frontend">
+  <meta name="apple-mobile-web-app-title" content="Cineza">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
-
-  <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>frontend</title>
+  <title>Cineza</title>
   <link rel="manifest" href="manifest.json">
+
+  <script src="https://verify.msg91.com/otp-provider.js"></script>
+  <script>
+    window.cinezaMsg91Ready = false;
+    window.cinezaMsg91LastError = null;
+
+    window.initCinezaMsg91 = function () {
+      if (typeof window.initSendOTP !== "function") {
+        console.warn("[Cineza] MSG91 SDK script not ready yet.");
+        return;
+      }
+
+      const configuration = {
+        widgetId: "366a79684469353833313838",
+        tokenAuth: "YOUR_MSG91_WIDGET_TOKEN",
+        exposeMethods: true,
+        success: function (data) {
+          console.log("[Cineza MSG91] Default Success:", data);
+          window.cinezaMsg91LastSuccess = data;
+        },
+        failure: function (error) {
+          console.error("[Cineza MSG91] Default Failure:", error);
+          window.cinezaMsg91LastError = error;
+        }
+      };
+
+      try {
+        window.initSendOTP(configuration);
+        window.cinezaMsg91Ready = true;
+        console.log("[Cineza] initSendOTP called successfully.");
+      } catch (e) {
+        console.error("[Cineza] initSendOTP exception:", e);
+        window.cinezaMsg91LastError = e;
+      }
+    };
+
+    // Safe wrappers called by Flutter
+    window.cinezaSendOtp = function (identifier, successCb, failureCb) {
+      console.log("[Cineza] Sending OTP to:", identifier);
+      if (typeof window.sendOtp !== "function" && typeof window.initCinezaMsg91 === "function") {
+        window.initCinezaMsg91();
+      }
+      if (typeof window.sendOtp === "function") {
+        try {
+          window.sendOtp(
+            identifier,
+            function (res) {
+              console.log("[Cineza] sendOtp success:", res);
+              if (typeof successCb === "function") successCb(res);
+            },
+            function (err) {
+              console.error("[Cineza] sendOtp failure:", err);
+              if (typeof failureCb === "function") failureCb(err);
+            }
+          );
+        } catch (e) {
+          console.error("[Cineza] sendOtp threw exception:", e);
+          if (typeof failureCb === "function") failureCb(String(e));
+        }
+      } else {
+        const msg = "MSG91 OTP widget is still initializing. Please try again in a moment.";
+        console.warn("[Cineza] " + msg);
+        if (typeof failureCb === "function") failureCb(msg);
+      }
+    };
+
+    window.cinezaVerifyOtp = function (otp, successCb, failureCb, reqId) {
+      console.log("[Cineza] Verifying OTP:", otp, "reqId:", reqId);
+      if (typeof window.verifyOtp === "function") {
+        try {
+          window.verifyOtp(
+            otp,
+            function (res) {
+              console.log("[Cineza] verifyOtp success:", res);
+              if (typeof successCb === "function") successCb(res);
+            },
+            function (err) {
+              console.error("[Cineza] verifyOtp failure:", err);
+              if (typeof failureCb === "function") failureCb(err);
+            },
+            reqId
+          );
+        } catch (e) {
+          console.error("[Cineza] verifyOtp threw exception:", e);
+          if (typeof failureCb === "function") failureCb(String(e));
+        }
+      } else {
+        const msg = "MSG91 verifyOtp is not ready.";
+        console.warn("[Cineza] " + msg);
+        if (typeof failureCb === "function") failureCb(msg);
+      }
+    };
+
+    window.cinezaRetryOtp = function (channel, successCb, failureCb, reqId) {
+      console.log("[Cineza] Retrying OTP, channel:", channel, "reqId:", reqId);
+      if (typeof window.retryOtp === "function") {
+        try {
+          window.retryOtp(
+            channel,
+            function (res) {
+              console.log("[Cineza] retryOtp success:", res);
+              if (typeof successCb === "function") successCb(res);
+            },
+            function (err) {
+              console.error("[Cineza] retryOtp failure:", err);
+              if (typeof failureCb === "function") failureCb(err);
+            },
+            reqId
+          );
+        } catch (e) {
+          console.error("[Cineza] retryOtp threw exception:", e);
+          if (typeof failureCb === "function") failureCb(String(e));
+        }
+      } else {
+        const msg = "MSG91 retryOtp is not ready.";
+        console.warn("[Cineza] " + msg);
+        if (typeof failureCb === "function") failureCb(msg);
+      }
+    };
+
+    // Auto-init on page load and DOMContentLoaded
+    if (document.readyState === "complete" || document.readyState === "interactive") {
+      window.initCinezaMsg91();
+    } else {
+      window.addEventListener("DOMContentLoaded", function () {
+        window.initCinezaMsg91();
+      });
+      window.addEventListener("load", function () {
+        window.initCinezaMsg91();
+      });
+    }
+  </script>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
-
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

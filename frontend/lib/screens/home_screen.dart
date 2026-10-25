@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/city.dart';
 import '../models/movie.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -210,6 +212,139 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
+              // Login / Account Button (Left of Theme Icon)
+              StreamBuilder<User?>(
+                stream: FirebaseAuth.instance.authStateChanges(),
+                builder: (context, snapshot) {
+                  final user = snapshot.data;
+                  if (user != null) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppTheme.getSurfaceLight(isDark) : const Color(0xFFE8F1FC),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
+                        ),
+                      ),
+                      child: PopupMenuButton<String>(
+                        tooltip: 'Account Options',
+                        offset: const Offset(0, 44),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
+                          ),
+                        ),
+                        color: isDark ? AppTheme.darkSurface : Colors.white,
+                        onSelected: (value) async {
+                          if (value == 'logout') {
+                            await AuthService().signOut();
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            enabled: false,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  user.displayName ?? 'Cineza User',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isDark ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                if (user.phoneNumber != null || user.email != null)
+                                  Text(
+                                    user.phoneNumber ?? user.email ?? '',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? AppTheme.getTextMuted(isDark) : Colors.black54,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem(
+                            value: 'logout',
+                            child: Row(
+                              children: [
+                                Icon(Icons.logout_rounded, size: 18, color: Colors.redAccent),
+                                SizedBox(width: 8),
+                                Text('Sign Out', style: TextStyle(color: Colors.redAccent)),
+                              ],
+                            ),
+                          ),
+                        ],
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.account_circle_rounded,
+                                color: isDark ? AppTheme.goldAccent : const Color(0xFF0062FF),
+                                size: 18,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                (user.displayName != null && user.displayName!.isNotEmpty)
+                                    ? user.displayName!.split(' ').first
+                                    : 'Account',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : const Color(0xFF0A1B39),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppTheme.getSurfaceLight(isDark) : const Color(0xFFE8F1FC),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
+                      ),
+                    ),
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        minimumSize: const Size(0, 36),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: Icon(
+                        Icons.login_rounded,
+                        color: isDark ? AppTheme.goldAccent : const Color(0xFF0062FF),
+                        size: 18,
+                      ),
+                      label: Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0A1B39),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/login');
+                      },
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(width: 8),
+
               // Theme Toggle Button (Dark Mode / Bright Mode)
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 8),
