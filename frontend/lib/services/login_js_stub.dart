@@ -1,15 +1,15 @@
 void callSendOtp(
-    String identifier, Function(dynamic) onSuccess, Function(dynamic) onError) {
+    String identifier, void Function(dynamic) onSuccess, void Function(dynamic) onError) {
   onError('MSG91 OTP is only supported on Web platform.');
 }
 
-void callVerifyOtp(String otp, Function(dynamic) onSuccess,
-    Function(dynamic) onError, String? reqId) {
+void callVerifyOtp(String otp, void Function(dynamic) onSuccess,
+    void Function(dynamic) onError, String? reqId) {
   onError('MSG91 OTP is only supported on Web platform.');
 }
 
-void callRetryOtp(String channel, Function(dynamic) onSuccess,
-    Function(dynamic) onError, String? reqId) {
+void callRetryOtp(String channel, void Function(dynamic) onSuccess,
+    void Function(dynamic) onError, String? reqId) {
   onError('MSG91 OTP is only supported on Web platform.');
 }
 

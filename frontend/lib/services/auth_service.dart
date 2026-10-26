@@ -29,6 +29,31 @@ class AuthService {
     return await _auth.signInWithCredential(credential);
   }
 
+  Future<UserCredential> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    return await _auth.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+  }
+
+  Future<UserCredential> registerWithEmailAndPassword({
+    required String email,
+    required String password,
+    String? displayName,
+  }) async {
+    final userCredential = await _auth.createUserWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    if (displayName != null && displayName.trim().isNotEmpty) {
+      await userCredential.user?.updateDisplayName(displayName.trim());
+    }
+    return userCredential;
+  }
+
   /// Exchanges MSG91 accessToken for a Firebase custom token via Cloudflare Worker
   /// and signs in to Firebase.
   Future<UserCredential> signInWithMsg91AccessToken(String accessToken) async {

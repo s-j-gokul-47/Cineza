@@ -6,6 +6,7 @@ import '../models/movie.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import 'location_selector_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -240,6 +241,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         onSelected: (value) async {
                           if (value == 'logout') {
                             await AuthService().signOut();
+                          } else if (value == 'terms') {
+                            Navigator.pushNamed(context, '/terms-policy', arguments: 0);
+                          } else if (value == 'privacy') {
+                            Navigator.pushNamed(context, '/terms-policy', arguments: 1);
                           }
                         },
                         itemBuilder: (context) => [
@@ -264,6 +269,33 @@ class _HomeScreenState extends State<HomeScreen> {
                                       color: isDark ? AppTheme.getTextMuted(isDark) : Colors.black54,
                                     ),
                                   ),
+                              ],
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: 'terms',
+                            child: Row(
+                              children: [
+                                Icon(Icons.gavel_rounded, size: 18, color: isDark ? AppTheme.goldAccent : activePrimary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Terms of Service',
+                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                ),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'privacy',
+                            child: Row(
+                              children: [
+                                Icon(Icons.shield_outlined, size: 18, color: isDark ? AppTheme.goldAccent : activePrimary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Privacy Policy',
+                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                ),
                               ],
                             ),
                           ),
@@ -370,49 +402,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(width: 8),
 
-              // City Selector Dropdown
-              if (_cities.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(right: 20, top: 8, bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppTheme.getSurfaceLight(isDark) : const Color(0xFFE8F1FC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<City>(
-                      value: _selectedCity,
-                      dropdownColor: isDark ? AppTheme.darkSurface : Colors.white,
-                      icon: Icon(
-                        Icons.location_on_rounded,
-                        color: isDark ? activePrimary : const Color(0xFF0062FF),
-                        size: 18,
-                      ),
-                      items: _cities.map((city) {
-                        return DropdownMenuItem<City>(
-                          value: city,
-                          child: Text(
-                            '${city.name}, ${city.state}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.getTextPrimary(isDark),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (city) {
-                    if (city != null) {
-                      setState(() => _selectedCity = city);
-                      _filterMovies();
-                    }
-                  },
-                ),
-              ),
-            ),
+              // Interactive Location Bar Button (Region Discovery)
+              _buildLocationBar(isDark, activePrimary),
         ],
       ),
       body: _isLoading
@@ -551,7 +542,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 40),
+                    const SizedBox(height: 30),
+
+                    // Legal & Brand Footer
+                    _buildFooter(isDark, activePrimary),
                   ],
                 ),
               ),
@@ -1112,6 +1106,260 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // --- FOOTER WITH TERMS & PRIVACY LINKS ---
+
+  Widget _buildFooter(bool isDark, Color activePrimary) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkSurface : const Color(0xFFF1F5F9),
+        border: Border(
+          top: BorderSide(
+            color: isDark ? AppTheme.darkSurfaceBorder : const Color(0xFFE2E8F0),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1040),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/images/cineza_logo_transparent.png',
+                    height: 24,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => Icon(
+                      Icons.confirmation_number_rounded,
+                      color: activePrimary,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'CINEZA CINEMAS',
+                    style: TextStyle(
+                      fontFamily: 'PlusJakartaSans',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      letterSpacing: 0.8,
+                      color: AppTheme.getTextPrimary(isDark),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Next-Gen Cinematic Ticketing • High-Concurrency 10-Min Distributed Redis Seat Locks',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.getTextMuted(isDark),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 14,
+                runSpacing: 8,
+                children: [
+                  InkWell(
+                    onTap: () => Navigator.pushNamed(context, '/terms-policy', arguments: 0),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Text(
+                        'Terms of Service',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: activePrimary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '•',
+                    style: TextStyle(color: AppTheme.getTextMuted(isDark)),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.pushNamed(context, '/terms-policy', arguments: 1),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Text(
+                        'Privacy Policy',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: activePrimary,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '•',
+                    style: TextStyle(color: AppTheme.getTextMuted(isDark)),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_rounded, size: 13, color: isDark ? AppTheme.goldAccent : activePrimary),
+                      const SizedBox(width: 4),
+                      Text(
+                        '256-Bit Bank Encryption',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.getTextMuted(isDark),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                '© 2026 Cineza Entertainment Technologies Pvt. Ltd. All Rights Reserved.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.getTextMuted(isDark).withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- INTERACTIVE LOCATION BAR (REGION DISCOVERY) ---
+
+  Widget _buildLocationBar(bool isDark, Color activePrimary) {
+    final cityName = _selectedCity?.name.isNotEmpty == true ? _selectedCity!.name : 'Mumbai';
+    final stateName = _selectedCity?.state.isNotEmpty == true ? _selectedCity!.state : 'Maharashtra';
+
+    return Container(
+      margin: const EdgeInsets.only(right: 20, top: 7, bottom: 7),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.getSurfaceLight(isDark) : const Color(0xFFE8F1FC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: activePrimary.withValues(alpha: isDark ? 0.15 : 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () async {
+            final chosenCity = await Navigator.push<City>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => LocationSelectorScreen(
+                  currentCity: _selectedCity,
+                  availableCities: _cities,
+                  onLocationConfirmed: (newCity) {
+                    setState(() => _selectedCity = newCity);
+                    _filterMovies();
+                  },
+                ),
+              ),
+            );
+            if (chosenCity != null && mounted) {
+              setState(() => _selectedCity = chosenCity);
+              _filterMovies();
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Glowing Pin / GPS Icon
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: activePrimary.withValues(alpha: isDark ? 0.2 : 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.near_me_rounded,
+                    color: activePrimary,
+                    size: 15,
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Location Text (Two lines: Region Discovery / City, State)
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'REGION DISCOVERY',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.6,
+                            color: isDark ? AppTheme.getTextMuted(isDark) : const Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: activePrimary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '$cityName, $stateName',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.getTextPrimary(isDark),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+
+                // Edit / Dropdown Chevron Indicator
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: isDark ? AppTheme.getTextMuted(isDark) : const Color(0xFF64748B),
+                  size: 18,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

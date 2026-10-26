@@ -30,7 +30,7 @@ external bool? get _cinezaMsg91Ready;
 external void _initCinezaMsg91();
 
 void callSendOtp(
-    String identifier, Function(dynamic) onSuccess, Function(dynamic) onError) {
+    String identifier, void Function(dynamic) onSuccess, void Function(dynamic) onError) {
   if (_cinezaMsg91Ready != true) {
     try {
       _initCinezaMsg91();
@@ -38,27 +38,39 @@ void callSendOtp(
   }
   _sendOtpJs(
     identifier.toJS,
-    ((JSAny? data) => onSuccess(data?.dartify())).toJS,
-    ((JSAny? error) => onError(error?.dartify())).toJS,
+    ((JSAny? data) {
+      onSuccess(data?.dartify());
+    }).toJS,
+    ((JSAny? error) {
+      onError(error?.dartify());
+    }).toJS,
   );
 }
 
-void callVerifyOtp(String otp, Function(dynamic) onSuccess,
-    Function(dynamic) onError, String? reqId) {
+void callVerifyOtp(String otp, void Function(dynamic) onSuccess,
+    void Function(dynamic) onError, String? reqId) {
   _verifyOtpJs(
     otp.toJS,
-    ((JSAny? data) => onSuccess(data?.dartify())).toJS,
-    ((JSAny? error) => onError(error?.dartify())).toJS,
+    ((JSAny? data) {
+      onSuccess(data?.dartify());
+    }).toJS,
+    ((JSAny? error) {
+      onError(error?.dartify());
+    }).toJS,
     reqId?.toJS,
   );
 }
 
-void callRetryOtp(String channel, Function(dynamic) onSuccess,
-    Function(dynamic) onError, String? reqId) {
+void callRetryOtp(String channel, void Function(dynamic) onSuccess,
+    void Function(dynamic) onError, String? reqId) {
   _retryOtpJs(
     channel.toJS,
-    ((JSAny? data) => onSuccess(data?.dartify())).toJS,
-    ((JSAny? error) => onError(error?.dartify())).toJS,
+    ((JSAny? data) {
+      onSuccess(data?.dartify());
+    }).toJS,
+    ((JSAny? error) {
+      onError(error?.dartify());
+    }).toJS,
     reqId?.toJS,
   );
 }
