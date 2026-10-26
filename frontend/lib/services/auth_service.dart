@@ -3,30 +3,154 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'api_service.dart';
 
 class AuthService {
   static const String _workerOtpUrl =
       'https://cineza-auth-api.gokulakannansj.workers.dev/auth/otp';
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final ApiService _apiService = ApiService();
 
   Future<UserCredential> signInWithGoogle() async {
+    final UserCredential credential;
     if (kIsWeb) {
       final provider = GoogleAuthProvider();
-      return await _auth.signInWithPopup(provider);
+      credential = await _auth.signInWithPopup(provider);
+    } else {
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize();
+
+      final googleUser = await googleSignIn.authenticate();
+      final googleAuth = googleUser.authentication;
+
+      final cred = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+
+      credential = await _auth.signInWithCredential(cred);
     }
 
-    final googleSignIn = GoogleSignIn.instance;
-    await googleSignIn.initialize();
+    // Ensure the Google user's name is saved as their username and synchronized to the database
+    final user = credential.user;
+    if (user != null) {
+      String resolvedName = '';
+      if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+        resolvedName = user.displayName!.trim();
+      }
+      if (resolvedName.isEmpty && credential.additionalUserInfo?.profile != null) {
+        final profile = credential.additionalUserInfo!.profile!;
+        if (profile['name'] != null && profile['name'].toString().trim().isNotEmpty) {
+          resolvedName = profile['name'].toString().trim();
+        }
+      }
+      if (resolvedName.isEmpty && user.providerData.isNotEmpty) {
+        for (final info in user.providerData) {
+          if (info.displayName != null && info.displayName!.trim().isNotEmpty) {
+            resolvedName = info.displayName!.trim();
+            break;
+          }
+        }
+      }
+      if (resolvedName.isEmpty && user.email != null && user.email!.isNotEmpty) {
+        resolvedName = user.email!.split('@').first;
+      }
+      if (resolvedName.isEmpty) {
+        resolvedName = 'Cineza User';
+      }
 
-    final googleUser = await googleSignIn.authenticate();
-    final googleAuth = googleUser.authentication;
+      try {
+        await user.updateDisplayName(resolvedName);
+        await user.reload();
+      } catch (_) {}
 
-    final credential = GoogleAuthProvider.credential(
-      idToken: googleAuth.idToken,
-    );
+      // Store/Sync in backend MySQL users table
+      try {
+        await _apiService.syncUser(
+          firebaseUid: user.uid,
+          username: resolvedName,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          authProvider: 'GOOGLE',
+          profilePicUrl: user.photoURL,
+        );
+      } catch (_) {}
+    }
 
-    return await _auth.signInWithCredential(credential);
+    return credential;
+  }
+
+  /// Automatically resolves and synchronizes user profile between Firebase and MySQL
+  Future<String> resolveAndSyncUser(User user) async {
+    String resolvedName = '';
+    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      resolvedName = user.displayName!.trim();
+    }
+
+    if (resolvedName.isEmpty && user.providerData.isNotEmpty) {
+      for (final info in user.providerData) {
+        if (info.displayName != null && info.displayName!.trim().isNotEmpty) {
+          resolvedName = info.displayName!.trim();
+          break;
+        }
+      }
+    }
+
+    // Check backend MySQL database
+    if (resolvedName.isEmpty) {
+      try {
+        final dbUser = await _apiService.getUserProfile(user.uid);
+        if (dbUser != null && dbUser['username'] != null && dbUser['username'].toString().trim().isNotEmpty) {
+          resolvedName = dbUser['username'].toString().trim();
+        }
+      } catch (_) {}
+    }
+
+    if (resolvedName.isEmpty && user.email != null && user.email!.isNotEmpty) {
+      resolvedName = user.email!.split('@').first;
+    }
+
+    if (resolvedName.isNotEmpty && user.displayName != resolvedName) {
+      try {
+        await user.updateDisplayName(resolvedName);
+        await user.reload();
+      } catch (_) {}
+    }
+
+    // Sync to MySQL
+    if (resolvedName.isNotEmpty) {
+      try {
+        await _apiService.syncUser(
+          firebaseUid: user.uid,
+          username: resolvedName,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          authProvider: user.phoneNumber != null ? 'PHONE' : 'GOOGLE',
+          profilePicUrl: user.photoURL,
+        );
+      } catch (_) {}
+    }
+
+    return resolvedName.isNotEmpty ? resolvedName : 'Cineza User';
+  }
+
+  /// Update the current user's username both in Firebase Auth and MySQL database
+  Future<void> updateUsername(String newUsername) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final cleanName = newUsername.trim();
+      await user.updateDisplayName(cleanName);
+      await user.reload();
+
+      await _apiService.syncUser(
+        firebaseUid: user.uid,
+        username: cleanName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        authProvider: user.phoneNumber != null ? 'PHONE' : 'GOOGLE',
+        profilePicUrl: user.photoURL,
+      );
+    }
   }
 
   Future<UserCredential> signInWithEmailAndPassword({

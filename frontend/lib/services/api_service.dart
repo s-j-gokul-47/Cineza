@@ -254,6 +254,75 @@ class ApiService {
     }
   }
 
+  /// Synchronize or store user profile in backend MySQL users table
+  Future<Map<String, dynamic>?> syncUser({
+    required String firebaseUid,
+    required String username,
+    String? email,
+    String? phoneNumber,
+    String? authProvider,
+    String? profilePicUrl,
+  }) async {
+    try {
+      final response = await _client.post(
+        Uri.parse('$baseUrl/users/sync'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'firebaseUid': firebaseUid,
+          'username': username,
+          'email': email,
+          'phoneNumber': phoneNumber,
+          'authProvider': authProvider ?? 'GOOGLE',
+          'profilePicUrl': profilePicUrl,
+        }),
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body);
+      }
+    } catch (_) {
+      // Gracefully continue if backend is initializing
+    }
+    return null;
+  }
+
+  /// Get user profile from backend by Firebase UID
+  Future<Map<String, dynamic>?> getUserProfile(String firebaseUid) async {
+    try {
+      final response = await _client.get(Uri.parse('$baseUrl/users/$firebaseUid'));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Get user profile from backend by Phone Number
+  Future<Map<String, dynamic>?> getUserByPhone(String phone) async {
+    try {
+      final response = await _client.get(Uri.parse('$baseUrl/users/by-phone?phone=$phone'));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Update username in backend
+  Future<bool> updateUsername(String firebaseUid, String username) async {
+    try {
+      final response = await _client.put(
+        Uri.parse('$baseUrl/users/username'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'firebaseUid': firebaseUid,
+          'username': username,
+        }),
+      );
+      return response.statusCode >= 200 && response.statusCode < 300;
+    } catch (_) {}
+    return false;
+  }
+
   static ShowSeatMap _generateFallbackSeatMap(int showId) {
     final Map<String, List<SeatModel>> map = {};
     int idCounter = 1;

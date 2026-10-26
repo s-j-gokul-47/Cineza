@@ -27,6 +27,194 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<String> _genres = ['All', 'Sci-Fi', 'Action', 'Biography', 'Animation'];
 
+  bool _isSyncingUser = false;
+
+  /// Resolves the user's display name from Firebase, Google provider data, or email/phone fallback
+  String _getResolvedDisplayName(User user) {
+    if (user.displayName != null &&
+        user.displayName!.trim().isNotEmpty &&
+        user.displayName != 'Cineza User') {
+      return user.displayName!.trim();
+    }
+    // Check providerData (e.g. Google profile)
+    for (final info in user.providerData) {
+      if (info.displayName != null && info.displayName!.trim().isNotEmpty) {
+        return info.displayName!.trim();
+      }
+    }
+    // Fallback to email prefix
+    if (user.email != null && user.email!.trim().isNotEmpty) {
+      return user.email!.split('@').first;
+    }
+    // Fallback to phone number
+    if (user.phoneNumber != null && user.phoneNumber!.trim().isNotEmpty) {
+      return user.phoneNumber!;
+    }
+    return 'Cineza Member';
+  }
+
+  /// Automatically synchronizes the user profile with Firebase Auth and MySQL backend
+  void _syncUserProfileIfNeeded(User user) {
+    if (_isSyncingUser) return;
+    if (user.displayName == null ||
+        user.displayName!.trim().isEmpty ||
+        user.displayName == 'Cineza User') {
+      _isSyncingUser = true;
+      AuthService().resolveAndSyncUser(user).then((resolvedName) {
+        _isSyncingUser = false;
+        if (mounted && resolvedName != 'Cineza User') {
+          setState(() {});
+        }
+      }).catchError((_) {
+        _isSyncingUser = false;
+      });
+    }
+  }
+
+  /// Dialog to edit or update the username anytime
+  void _showEditUsernameDialog(BuildContext context, User user) {
+    final messenger = ScaffoldMessenger.of(context);
+    final currentName = _getResolvedDisplayName(user);
+    final controller = TextEditingController(
+      text: (currentName == 'Cineza User' || currentName == 'Cineza Member') ? '' : currentName,
+    );
+    final isDark = ThemeController.themeMode.value == ThemeMode.dark;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        bool isSaving = false;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: isDark ? AppTheme.darkSurface : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
+                ),
+              ),
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.edit_rounded,
+                    color: isDark ? AppTheme.goldAccent : const Color(0xFF0062FF),
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Change Username',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Update the name displayed on your Cineza tickets, bookings, and profile.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? AppTheme.getTextMuted(isDark) : Colors.black54,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: controller,
+                    autofocus: true,
+                    style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                    decoration: InputDecoration(
+                      labelText: 'Username',
+                      hintText: 'Enter new username',
+                      errorText: errorText,
+                      filled: true,
+                      fillColor: isDark ? AppTheme.getSurfaceLight(isDark) : const Color(0xFFF1F5F9),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(
+                          color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving ? null : () => Navigator.of(ctx).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: isDark ? AppTheme.getTextMuted(isDark) : Colors.black54),
+                  ),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isDark ? AppTheme.getPrimary(isDark) : const Color(0xFF0062FF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final newName = controller.text.trim();
+                          if (newName.isEmpty) {
+                            setDialogState(() => errorText = 'Username cannot be empty');
+                            return;
+                          }
+                          if (newName.length < 2) {
+                            setDialogState(() => errorText = 'Minimum 2 characters required');
+                            return;
+                          }
+
+                          setDialogState(() {
+                            isSaving = true;
+                            errorText = null;
+                          });
+
+                          try {
+                            await AuthService().updateUsername(newName);
+                            if (ctx.mounted) Navigator.of(ctx).pop();
+                            if (mounted) {
+                              setState(() {});
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text('Username updated to "$newName"'),
+                                  backgroundColor: const Color(0xFF0062FF),
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              isSaving = false;
+                              errorText = 'Failed to update username';
+                            });
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+
   @override
   void initState() {
     super.initState();
@@ -219,6 +407,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 builder: (context, snapshot) {
                   final user = snapshot.data;
                   if (user != null) {
+                    _syncUserProfileIfNeeded(user);
+                    final resolvedDisplayName = _getResolvedDisplayName(user);
+                    final displayFirstName = resolvedDisplayName.contains(' ')
+                        ? resolvedDisplayName.split(' ').first
+                        : resolvedDisplayName;
+
                     return Container(
                       margin: const EdgeInsets.symmetric(vertical: 8),
                       decoration: BoxDecoration(
@@ -241,6 +435,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onSelected: (value) async {
                           if (value == 'logout') {
                             await AuthService().signOut();
+                          } else if (value == 'edit_username') {
+                            _showEditUsernameDialog(context, user);
                           } else if (value == 'terms') {
                             Navigator.pushNamed(context, '/terms-policy', arguments: 0);
                           } else if (value == 'privacy') {
@@ -255,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  user.displayName ?? 'Cineza User',
+                                  resolvedDisplayName,
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: isDark ? Colors.white : Colors.black87,
@@ -273,6 +469,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           const PopupMenuDivider(),
+                          PopupMenuItem(
+                            value: 'edit_username',
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit_rounded, size: 18, color: isDark ? AppTheme.goldAccent : activePrimary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Change Username',
+                                  style: TextStyle(color: isDark ? Colors.white : Colors.black87),
+                                ),
+                              ],
+                            ),
+                          ),
                           PopupMenuItem(
                             value: 'terms',
                             child: Row(
@@ -323,9 +532,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                (user.displayName != null && user.displayName!.isNotEmpty)
-                                    ? user.displayName!.split(' ').first
-                                    : 'Account',
+                                displayFirstName,
                                 style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,

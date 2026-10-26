@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/login_js_helper.dart';
 import '../widgets/otp_verification_view.dart';
@@ -17,10 +18,15 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final AuthService _authService = AuthService();
+  final ApiService _apiService = ApiService();
 
   // Mobile Controller & OTP State
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
   bool _otpSent = false;
+  bool _needsUsername = false;
+  bool _isSavingUsername = false;
+  String? _authenticatedPhone;
   String? _reqId;
   String? _pendingAccessToken;
   Timer? _timeoutTimer;
@@ -59,6 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _timeoutTimer?.cancel();
     _phoneController.dispose();
+    _usernameController.dispose();
     super.dispose();
   }
 
@@ -216,10 +223,52 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _finishLoginWithMsg91(String accessToken) async {
+    setState(() {
+      _isOtpLoading = true;
+      _errorMessage = null;
+    });
+
     try {
-      await _authService.signInWithMsg91AccessToken(accessToken);
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/');
+      final cred = await _authService.signInWithMsg91AccessToken(accessToken);
+      final user = cred.user ?? _authService.currentUser;
+
+      String? existingUsername;
+      if (user != null) {
+        existingUsername = user.displayName;
+        if (existingUsername == null || existingUsername.trim().isEmpty) {
+          try {
+            final dbProfile = await _apiService.getUserProfile(user.uid);
+            if (dbProfile != null &&
+                dbProfile['username'] != null &&
+                dbProfile['username'].toString().trim().isNotEmpty) {
+              existingUsername = dbProfile['username'].toString().trim();
+              await user.updateDisplayName(existingUsername);
+              await user.reload();
+            }
+          } catch (_) {}
+        }
+      }
+
+      final digits = _cleanPhoneDigits(_phoneController.text);
+      _authenticatedPhone = digits.isNotEmpty ? '+91$digits' : user?.phoneNumber;
+
+      if (existingUsername != null &&
+          existingUsername.trim().isNotEmpty &&
+          existingUsername != 'Cineza User') {
+        // User already has a username setup! Direct to home
+        if (!mounted) return;
+        Navigator.pushReplacementNamed(context, '/');
+      } else {
+        // First-time or missing username - ask the user to enter their username
+        if (!mounted) return;
+        setState(() {
+          _needsUsername = true;
+          _isOtpLoading = false;
+          _otpSent = false;
+          _errorMessage = null;
+          _successMessage = null;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -229,6 +278,53 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
+
+  Future<void> _saveUsernameAndProceed() async {
+    final cleanUsername = _usernameController.text.trim();
+    if (cleanUsername.isEmpty) {
+      setState(() => _errorMessage = 'Please enter a username.');
+      return;
+    }
+    if (cleanUsername.length < 2) {
+      setState(() => _errorMessage = 'Username must be at least 2 characters long.');
+      return;
+    }
+
+    setState(() {
+      _isSavingUsername = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final user = _authService.currentUser;
+      if (user != null) {
+        await user.updateDisplayName(cleanUsername);
+        await user.reload();
+
+        final phone = _authenticatedPhone ??
+            user.phoneNumber ??
+            '+91${_cleanPhoneDigits(_phoneController.text)}';
+
+        await _apiService.syncUser(
+          firebaseUid: user.uid,
+          username: cleanUsername,
+          phoneNumber: phone,
+          authProvider: 'PHONE',
+        );
+      }
+
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/');
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSavingUsername = false;
+          _errorMessage = 'Could not save username: $e';
+        });
+      }
+    }
+  }
+
 
   Future<void> _resendOtp() async {
     final digits = _cleanPhoneDigits(_phoneController.text);
@@ -423,17 +519,22 @@ class _LoginScreenState extends State<LoginScreen> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
                               // 1. Header & Cineza Logo Badge
-                              _buildHeaderSection(),
+                              if (_needsUsername)
+                                _buildUsernameSetupHeader()
+                              else
+                                _buildHeaderSection(),
                               const SizedBox(height: 28),
 
-                              // If OTP was sent, show the Animated OTP Verification View
-                              if (_otpSent) ...[
+                              // Feedback / Error Banner
+                              if (_errorMessage != null || _successMessage != null)
+                                _buildStatusBanner(),
+
+                              // State switcher: Username Setup vs OTP view vs Phone/Social form
+                              if (_needsUsername) ...[
+                                _buildUsernameSetupForm(),
+                              ] else if (_otpSent) ...[
                                 _buildAnimatedOtpSection(),
                               ] else ...[
-                                // Feedback / Error Banner
-                                if (_errorMessage != null || _successMessage != null)
-                                  _buildStatusBanner(),
-
                                 // 2. Direct Mobile Number Input & Continue Button
                                 _buildPhoneOtpForm(hasValidPhone),
 
@@ -455,6 +556,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 _buildTermsFooter(),
                               ],
                             ],
+
                           ),
                         ),
                       ],
@@ -543,6 +645,160 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  // --- USERNAME SETUP SECTION (POST-OTP) ---
+
+  Widget _buildUsernameSetupHeader() {
+    return Column(
+      children: [
+        Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: kSurfaceContainerLowest,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: kPrimary.withValues(alpha: 0.5),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: kPrimaryContainer.withValues(alpha: 0.25),
+                blurRadius: 18,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.person_pin_rounded,
+                color: kSecondary,
+                size: 22,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'ONE LAST STEP',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 2.0,
+                  color: kSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Text(
+          'Enter Your Username',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: kOnSurface,
+            letterSpacing: -0.4,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Mobile verified! Choose a username to personalize your Cineza bookings and movie club perks.',
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 13.5,
+            color: kOutline,
+            height: 1.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUsernameSetupForm() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'CHOOSE USERNAME',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+            color: kOutline,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: kSurfaceContainerLowest,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: kPrimaryContainer.withValues(alpha: 0.6),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.account_circle_outlined,
+                color: kPrimary,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: _usernameController,
+                  autofocus: true,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: kOnSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'e.g. Cinephile99 or Alex_Film',
+                    hintStyle: GoogleFonts.inter(
+                      fontSize: 13.5,
+                      color: kSurfaceVariant,
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                  ),
+                  onSubmitted: (_) {
+                    if (!_isSavingUsername) _saveUsernameAndProceed();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildGradientButton(
+          label: _isSavingUsername ? 'Saving Username...' : 'Save & Enter Cineza',
+          icon: Icons.check_circle_rounded,
+          isLoading: _isSavingUsername,
+          onPressed: _isSavingUsername ? null : _saveUsernameAndProceed,
+        ),
+        const SizedBox(height: 14),
+        Center(
+          child: TextButton(
+            onPressed: () {
+              Navigator.pushReplacementNamed(context, '/');
+            },
+            child: Text(
+              'Skip for now',
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                color: kOutline,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   // --- ANIMATED OTP VERIFICATION SECTION ---
 
   Widget _buildAnimatedOtpSection() {
@@ -562,7 +818,19 @@ class _LoginScreenState extends State<LoginScreen> {
         if (_pendingAccessToken != null && _pendingAccessToken!.isNotEmpty) {
           _finishLoginWithMsg91(_pendingAccessToken!);
         } else {
-          Navigator.pushReplacementNamed(context, '/');
+          final user = _authService.currentUser;
+          if (user != null &&
+              (user.displayName == null ||
+                  user.displayName!.isEmpty ||
+                  user.displayName == 'Cineza User')) {
+            setState(() {
+              _needsUsername = true;
+              _otpSent = false;
+              _isOtpLoading = false;
+            });
+          } else {
+            Navigator.pushReplacementNamed(context, '/');
+          }
         }
       },
       onResend: () {
@@ -578,6 +846,7 @@ class _LoginScreenState extends State<LoginScreen> {
       },
     );
   }
+
 
   // --- MOBILE PHONE INPUT FORM ---
 

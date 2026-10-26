@@ -119,3 +119,20 @@ CREATE TABLE IF NOT EXISTS booking_seats (
     FOREIGN KEY (seat_id) REFERENCES seats(id) ON DELETE CASCADE,
     UNIQUE KEY uq_booking_seat (booking_id, seat_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 9. User Entity
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    firebase_uid VARCHAR(128) UNIQUE,
+    username VARCHAR(100) NOT NULL,
+    email VARCHAR(150),
+    phone_number VARCHAR(50),
+    auth_provider VARCHAR(50) DEFAULT 'GOOGLE',
+    profile_pic_url VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_firebase_uid (firebase_uid),
+    INDEX idx_phone_number (phone_number),
+    INDEX idx_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
