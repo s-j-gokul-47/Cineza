@@ -170,12 +170,12 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
           _pulseController.forward(from: 0);
           _checkController.forward(from: 0);
 
-          // Success hold before triggering parent onSuccess (2000ms)
+          // Success hold before triggering parent onSuccess (800ms for smooth feedback)
           _addTimer(() {
             if (mounted) {
               widget.onSuccess();
             }
-          }, 2280);
+          }, 800);
         } else {
           _triggerErrorState('Invalid OTP code.');
         }

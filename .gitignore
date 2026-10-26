@@ -49,5 +49,9 @@ frontend/ios/Runner/GoogleService-Info.plist
 frontend/lib/firebase_options.dart
 frontend/.firebaserc
 frontend/firebase.json
+frontend/web/msg91_config.js
 *.key
 *.pem
+
+# Documentation & Chat History
+CHAT_HISTORY.md

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -170,8 +171,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (mounted) {
             setState(() {
               _isOtpLoading = false;
-              _errorMessage =
-                  error != null ? error.toString() : 'Failed to send OTP.';
+              _errorMessage = _formatOtpError(error);
             });
           }
         },
@@ -186,6 +186,22 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     }
   }
+
+  String _formatOtpError(dynamic error) {
+    if (error == null) return 'Failed to send OTP. Please try again.';
+    final str = error.toString();
+    if (str.contains('AuthenticationFailure') || str.contains('401')) {
+      return 'MSG91 Authentication Failed (401): Please enter your real MSG91 Token Auth in web/index.html to send live SMS.';
+    }
+    if (str.contains('still initializing')) {
+      return 'MSG91 OTP widget is initializing. If this persists, please verify your MSG91 Widget ID and Token Auth in web/index.html.';
+    }
+    if (str.contains('404')) {
+      return 'Widget Not Found (404): Please check your MSG91 Widget ID in web/index.html.';
+    }
+    return str;
+  }
+
 
   Future<bool> _verifyOtpWithCode(String otp) async {
     final completer = Completer<bool>();
@@ -223,64 +239,80 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _finishLoginWithMsg91(String accessToken) async {
+    final digits = _cleanPhoneDigits(_phoneController.text);
+    _authenticatedPhone = digits.isNotEmpty ? '+91$digits' : null;
+
     setState(() {
       _isOtpLoading = true;
       _errorMessage = null;
     });
 
+    // 1. Attempt Firebase authentication via custom token with 3-second timeout
     try {
-      final cred = await _authService.signInWithMsg91AccessToken(accessToken);
-      final user = cred.user ?? _authService.currentUser;
+      await _authService.signInWithMsg91AccessToken(accessToken).timeout(
+        const Duration(seconds: 3),
+      );
+    } catch (e) {
+      debugPrint('[Login] Firebase custom token exchange skipped or failed: $e');
+      // Ensure Firebase has an active user session if custom token failed
+      try {
+        if (_authService.currentUser == null) {
+          await _authService.signInAnonymously();
+        }
+      } catch (err) {
+        debugPrint('[Login] Anonymous sign-in skipped: $err');
+      }
+    }
 
-      String? existingUsername;
-      if (user != null) {
-        existingUsername = user.displayName;
-        if (existingUsername == null || existingUsername.trim().isEmpty) {
-          try {
-            final dbProfile = await _apiService.getUserProfile(user.uid);
-            if (dbProfile != null &&
-                dbProfile['username'] != null &&
-                dbProfile['username'].toString().trim().isNotEmpty) {
-              existingUsername = dbProfile['username'].toString().trim();
+    // 2. Check if this phone number or Firebase user already has a configured username in MySQL
+    String? existingUsername;
+    final user = _authService.currentUser;
+    if (user != null &&
+        user.displayName != null &&
+        user.displayName!.trim().isNotEmpty &&
+        user.displayName != 'Cineza User') {
+      existingUsername = user.displayName!.trim();
+    }
+
+    if (existingUsername == null || existingUsername.isEmpty) {
+      try {
+        final phone = _authenticatedPhone;
+        if (phone != null) {
+          final dbUser = await _apiService.getUserByPhone(phone);
+          if (dbUser != null &&
+              dbUser['username'] != null &&
+              dbUser['username'].toString().trim().isNotEmpty) {
+            existingUsername = dbUser['username'].toString().trim();
+            if (user != null) {
               await user.updateDisplayName(existingUsername);
               await user.reload();
             }
-          } catch (_) {}
+          }
         }
-      }
+      } catch (_) {}
+    }
 
-      final digits = _cleanPhoneDigits(_phoneController.text);
-      _authenticatedPhone = digits.isNotEmpty ? '+91$digits' : user?.phoneNumber;
+    if (!mounted) return;
 
-      if (existingUsername != null &&
-          existingUsername.trim().isNotEmpty &&
-          existingUsername != 'Cineza User') {
-        // User already has a username setup! Direct to home
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/');
-      } else {
-        // First-time or missing username - ask the user to enter their username
-        if (!mounted) return;
-        setState(() {
-          _needsUsername = true;
-          _isOtpLoading = false;
-          _otpSent = false;
-          _errorMessage = null;
-          _successMessage = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isOtpLoading = false;
-          _errorMessage = e.toString().replaceFirst('Exception: ', '');
-        });
-      }
+    // 3. If username is already established, route directly to Home; otherwise show username setup!
+    if (existingUsername != null &&
+        existingUsername.isNotEmpty &&
+        existingUsername != 'Cineza User') {
+      Navigator.pushReplacementNamed(context, '/');
+    } else {
+      // Transition immediately to the username setup form!
+      setState(() {
+        _needsUsername = true;
+        _otpSent = false;
+        _isOtpLoading = false;
+        _errorMessage = null;
+        _successMessage = null;
+      });
     }
   }
 
-  Future<void> _saveUsernameAndProceed() async {
-    final cleanUsername = _usernameController.text.trim();
+  Future<void> _saveUsernameAndProceed({String? fallbackUsername}) async {
+    final cleanUsername = (fallbackUsername ?? _usernameController.text).trim();
     if (cleanUsername.isEmpty) {
       setState(() => _errorMessage = 'Please enter a username.');
       return;
@@ -296,22 +328,34 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final user = _authService.currentUser;
-      if (user != null) {
-        await user.updateDisplayName(cleanUsername);
-        await user.reload();
+      final digits = _cleanPhoneDigits(_phoneController.text);
+      final phone = _authenticatedPhone ?? (digits.isNotEmpty ? '+91$digits' : null);
 
-        final phone = _authenticatedPhone ??
-            user.phoneNumber ??
-            '+91${_cleanPhoneDigits(_phoneController.text)}';
-
-        await _apiService.syncUser(
-          firebaseUid: user.uid,
-          username: cleanUsername,
-          phoneNumber: phone,
-          authProvider: 'PHONE',
-        );
+      // Ensure Firebase session exists
+      User? user = _authService.currentUser;
+      if (user == null) {
+        try {
+          final cred = await _authService.signInAnonymously();
+          user = cred.user;
+        } catch (_) {}
       }
+
+      if (user != null) {
+        try {
+          await user.updateDisplayName(cleanUsername);
+          await user.reload();
+        } catch (_) {}
+      }
+
+      final firebaseUid = user?.uid ?? 'phone_${digits.isNotEmpty ? digits : DateTime.now().millisecondsSinceEpoch}';
+
+      // Persist user to MySQL database via Spring Boot REST endpoint
+      await _apiService.syncUser(
+        firebaseUid: firebaseUid,
+        username: cleanUsername,
+        phoneNumber: phone,
+        authProvider: 'PHONE',
+      );
 
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/');
@@ -354,8 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (mounted) {
             setState(() {
               _isOtpLoading = false;
-              _errorMessage =
-                  error != null ? error.toString() : 'Failed to resend OTP.';
+              _errorMessage = _formatOtpError(error);
             });
           }
         },
@@ -783,7 +826,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Center(
           child: TextButton(
             onPressed: () {
-              Navigator.pushReplacementNamed(context, '/');
+              final digits = _cleanPhoneDigits(_phoneController.text);
+              final defaultName = digits.length >= 4
+                  ? 'User_${digits.substring(digits.length - 4)}'
+                  : 'Cineza Member';
+              _saveUsernameAndProceed(fallbackUsername: defaultName);
             },
             child: Text(
               'Skip for now',
@@ -818,19 +865,14 @@ class _LoginScreenState extends State<LoginScreen> {
         if (_pendingAccessToken != null && _pendingAccessToken!.isNotEmpty) {
           _finishLoginWithMsg91(_pendingAccessToken!);
         } else {
-          final user = _authService.currentUser;
-          if (user != null &&
-              (user.displayName == null ||
-                  user.displayName!.isEmpty ||
-                  user.displayName == 'Cineza User')) {
-            setState(() {
-              _needsUsername = true;
-              _otpSent = false;
-              _isOtpLoading = false;
-            });
-          } else {
-            Navigator.pushReplacementNamed(context, '/');
-          }
+          final digits = _cleanPhoneDigits(_phoneController.text);
+          _authenticatedPhone = digits.isNotEmpty ? '+91$digits' : null;
+          setState(() {
+            _needsUsername = true;
+            _otpSent = false;
+            _isOtpLoading = false;
+            _errorMessage = null;
+          });
         }
       },
       onResend: () {

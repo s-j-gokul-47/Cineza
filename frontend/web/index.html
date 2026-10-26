@@ -16,40 +16,69 @@
   <title>Cineza</title>
   <link rel="manifest" href="manifest.json">
 
-  <script src="https://verify.msg91.com/otp-provider.js"></script>
-  <script>
+  <!-- Local secret configuration (excluded from Git) -->
+  <script src="msg91_config.js"></script>
+
+  <script type="text/javascript">
     window.cinezaMsg91Ready = false;
     window.cinezaMsg91LastError = null;
 
-    window.initCinezaMsg91 = function () {
-      if (typeof window.initSendOTP !== "function") {
-        console.warn("[Cineza] MSG91 SDK script not ready yet.");
-        return;
-      }
-
-      const configuration = {
-        widgetId: "366a79684469353833313838",
-        tokenAuth: "YOUR_MSG91_WIDGET_TOKEN",
-        exposeMethods: true,
-        success: function (data) {
-          console.log("[Cineza MSG91] Default Success:", data);
-          window.cinezaMsg91LastSuccess = data;
-        },
-        failure: function (error) {
-          console.error("[Cineza MSG91] Default Failure:", error);
-          window.cinezaMsg91LastError = error;
-        }
-      };
-
-      try {
-        window.initSendOTP(configuration);
-        window.cinezaMsg91Ready = true;
-        console.log("[Cineza] initSendOTP called successfully.");
-      } catch (e) {
-        console.error("[Cineza] initSendOTP exception:", e);
-        window.cinezaMsg91LastError = e;
+    var configuration = {
+      widgetId: "366a79684469353833313838",
+      tokenAuth: window.cinezaMsg91TokenAuth || "YOUR_MSG91_WIDGET_TOKEN",
+      exposeMethods: true,
+      success: function (data) {
+        console.log("[Cineza MSG91] Default Success:", data);
+        window.cinezaMsg91LastSuccess = data;
+      },
+      failure: function (error) {
+        console.error("[Cineza MSG91] Default Failure:", error);
+        window.cinezaMsg91LastError = error;
       }
     };
+
+    window.initCinezaMsg91 = function () {
+      if (typeof window.initSendOTP === "function") {
+        try {
+          window.initSendOTP(configuration);
+          window.cinezaMsg91Ready = true;
+          console.log("[Cineza] initSendOTP called successfully.");
+        } catch (e) {
+          console.error("[Cineza] initSendOTP exception:", e);
+          window.cinezaMsg91LastError = e;
+        }
+      }
+    };
+
+    // Resilient script loader with fallback URLs as provided by MSG91
+    (function loadOtpScript(urls) {
+      let i = 0;
+      function attempt() {
+        const s = document.createElement('script');
+        s.src = urls[i];
+        s.async = true;
+        s.onload = () => {
+          console.log("[Cineza] MSG91 OTP script loaded from: " + urls[i]);
+          if (typeof window.initSendOTP === 'function') {
+            window.initSendOTP(configuration);
+            window.cinezaMsg91Ready = true;
+            console.log("[Cineza] initSendOTP initialized successfully with tokenAuth.");
+          }
+        };
+        s.onerror = () => {
+          console.warn("[Cineza] Failed to load OTP script from: " + urls[i]);
+          i++;
+          if (i < urls.length) {
+            attempt();
+          }
+        };
+        document.head.appendChild(s);
+      }
+      attempt();
+    })([
+      'https://verify.msg91.com/otp-provider.js',
+      'https://verify.phone91.com/otp-provider.js'
+    ]);
 
     // Safe wrappers called by Flutter
     window.cinezaSendOtp = function (identifier, successCb, failureCb) {
@@ -134,18 +163,6 @@
         if (typeof failureCb === "function") failureCb(msg);
       }
     };
-
-    // Auto-init on page load and DOMContentLoaded
-    if (document.readyState === "complete" || document.readyState === "interactive") {
-      window.initCinezaMsg91();
-    } else {
-      window.addEventListener("DOMContentLoaded", function () {
-        window.initCinezaMsg91();
-      });
-      window.addEventListener("load", function () {
-        window.initCinezaMsg91();
-      });
-    }
   </script>
 </head>
 <body>

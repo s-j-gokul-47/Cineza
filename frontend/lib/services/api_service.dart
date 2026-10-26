@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/city.dart';
 import '../models/movie.dart';
@@ -264,23 +265,26 @@ class ApiService {
     String? profilePicUrl,
   }) async {
     try {
+      final uri = Uri.parse('$baseUrl/users/sync');
+      final payload = {
+        'firebaseUid': firebaseUid,
+        'username': username,
+        'email': email,
+        'phoneNumber': phoneNumber,
+        'authProvider': authProvider ?? 'GOOGLE',
+        'profilePicUrl': profilePicUrl,
+      };
       final response = await _client.post(
-        Uri.parse('$baseUrl/users/sync'),
+        uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'firebaseUid': firebaseUid,
-          'username': username,
-          'email': email,
-          'phoneNumber': phoneNumber,
-          'authProvider': authProvider ?? 'GOOGLE',
-          'profilePicUrl': profilePicUrl,
-        }),
+        body: jsonEncode(payload),
       );
+      debugPrint('[ApiService] syncUser status: ${response.statusCode}, body: ${response.body}');
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body);
       }
-    } catch (_) {
-      // Gracefully continue if backend is initializing
+    } catch (e) {
+      debugPrint('[ApiService] syncUser network error: $e');
     }
     return null;
   }
