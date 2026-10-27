@@ -81,3 +81,13 @@ void initMsg91() {
     _initCinezaMsg91();
   } catch (_) {}
 }
+
+@JS('cinezaPlayClapperSound')
+external void _playClapperSoundJs();
+
+void playClapperSound() {
+  try {
+    _playClapperSoundJs();
+  } catch (_) {}
+}
+

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
 
 /// Screen displaying Cineza's official Terms of Service and Privacy Policy.
 /// Allows direct tab switching, live clause filtering/search, and seamless return to caller.
@@ -23,17 +24,19 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
   String _searchQuery = '';
   bool _isSearchExpanded = false;
 
-  // Dark Cinema Palette tokens aligned with AppTheme and LoginScreen
-  static const Color kBackground = Color(0xFF090A0F);
-  static const Color kSurfaceLow = Color(0xFF141722);
-  static const Color kSurface = Color(0xFF1E2336);
-  static const Color kSurfaceBorder = Color(0xFF262B40);
-  static const Color kPrimary = Color(0xFF60A5FA);
-  static const Color kPrimaryVivid = Color(0xFF0062FF);
-  static const Color kSecondaryCyan = Color(0xFF38BDF8);
-  static const Color kGold = Color(0xFFFFB800);
-  static const Color kTextWhite = Color(0xFFF8FAFC);
-  static const Color kTextMuted = Color(0xFF94A3B8);
+  // Dynamic Theme Tokens Aligned with Google Stitch Cineza
+  bool get isDark => ThemeController.isDark(context);
+
+  Color get kBackground => AppTheme.getBackground(isDark);
+  Color get kSurfaceLow => isDark ? AppTheme.darkSurface : AppTheme.lightSurfaceContainer;
+  Color get kSurface => isDark ? AppTheme.darkSurfaceContainer : AppTheme.lightSurface;
+  Color get kSurfaceBorder => isDark ? AppTheme.darkSurfaceBorder : AppTheme.lightSurfaceBorder;
+  Color get kPrimary => isDark ? AppTheme.primary : AppTheme.lightPrimary;
+  Color get kPrimaryVivid => isDark ? AppTheme.primary : AppTheme.lightPrimary;
+  Color get kSecondaryCyan => isDark ? AppTheme.accent : AppTheme.lightPrimary;
+  Color get kGold => AppTheme.getGoldAccent(isDark);
+  Color get kTextWhite => AppTheme.getTextPrimary(isDark);
+  Color get kTextMuted => AppTheme.getTextMuted(isDark);
 
   @override
   void initState() {
@@ -79,42 +82,47 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBackground,
-      appBar: _buildAppBar(),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1040),
-            child: Column(
-              children: [
-                // 1. Hero Header & Quick Stats Strip
-                _buildHeroHeader(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, currentMode, _) {
+        return Scaffold(
+          backgroundColor: kBackground,
+          appBar: _buildAppBar(),
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: Column(
+                  children: [
+                    // 1. Hero Header & Quick Stats Strip
+                    _buildHeroHeader(),
 
-                // 2. Segmented Navigation Tabs
-                _buildSegmentedTabBar(),
+                    // 2. Segmented Navigation Tabs
+                    _buildSegmentedTabBar(),
 
-                // 3. Search Bar (collapsible or active)
-                if (_isSearchExpanded) _buildSearchBar(),
+                    // 3. Search Bar (collapsible or active)
+                    if (_isSearchExpanded) _buildSearchBar(),
 
-                // 4. Tab Views (Terms vs Privacy)
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildTermsTab(),
-                      _buildPrivacyTab(),
-                    ],
-                  ),
+                    // 4. Tab Views (Terms vs Privacy)
+                    Expanded(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _buildTermsTab(),
+                          _buildPrivacyTab(),
+                        ],
+                      ),
+                    ),
+
+                    // 5. Bottom Sticky Agreement / Return Bar
+                    _buildBottomActionBar(),
+                  ],
                 ),
-
-                // 5. Bottom Sticky Agreement / Return Bar
-                _buildBottomActionBar(),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -135,20 +143,23 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: kSurfaceBorder),
             ),
-            child: const Icon(Icons.arrow_back_rounded, color: kTextWhite, size: 18),
+            child: Icon(Icons.arrow_back_rounded, color: kTextWhite, size: 18),
           ),
           tooltip: 'Return to Cineza',
           onPressed: () => Navigator.of(context).maybePop(),
         ),
       ),
-      title: Row(
+      title: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Image.asset(
             'assets/images/cineza_logo_transparent.png',
             height: 28,
             fit: BoxFit.contain,
-            errorBuilder: (_, _, _) => const Icon(
+            errorBuilder: (_, _, _) => Icon(
               Icons.confirmation_number_rounded,
               color: kSecondaryCyan,
               size: 24,
@@ -182,7 +193,10 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
           ),
         ],
       ),
+    ),
       actions: [
+        CinezaThemeToggle(compact: MediaQuery.of(context).size.width < 700),
+        const SizedBox(width: 4),
         IconButton(
           tooltip: _isSearchExpanded ? 'Close Search' : 'Search clauses',
           icon: Icon(
@@ -202,7 +216,7 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
         ),
         IconButton(
           tooltip: 'Copy policy link',
-          icon: const Icon(Icons.link_rounded, color: kTextMuted, size: 20),
+          icon: Icon(Icons.link_rounded, color: kTextMuted, size: 20),
           onPressed: () {
             Clipboard.setData(
               const ClipboardData(text: 'https://cineza.com/terms-policy'),
@@ -211,7 +225,7 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
               SnackBar(
                 content: Row(
                   children: [
-                    const Icon(Icons.check_circle_rounded, color: kSecondaryCyan, size: 18),
+                    Icon(Icons.check_circle_rounded, color: kSecondaryCyan, size: 18),
                     const SizedBox(width: 10),
                     Text(
                       'Policy URL copied to clipboard!',
@@ -223,7 +237,7 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: const BorderSide(color: kSurfaceBorder),
+                  side: BorderSide(color: kSurfaceBorder),
                 ),
                 duration: const Duration(seconds: 2),
               ),
@@ -247,7 +261,7 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
         color: kSurfaceLow,
-        border: const Border(
+        border: Border(
           bottom: BorderSide(color: kSurfaceBorder, width: 1),
         ),
       ),
@@ -433,10 +447,10 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
         decoration: InputDecoration(
           hintText: 'Search terms (e.g. "cancellation", "lock", "refund", "card", "otp")...',
           hintStyle: GoogleFonts.inter(fontSize: 13, color: kTextMuted),
-          prefixIcon: const Icon(Icons.search_rounded, size: 18, color: kSecondaryCyan),
+          prefixIcon: Icon(Icons.search_rounded, size: 18, color: kSecondaryCyan),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, size: 16, color: kTextMuted),
+                  icon: Icon(Icons.clear, size: 16, color: kTextMuted),
                   onPressed: () {
                     _searchController.clear();
                   },
@@ -656,7 +670,7 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
 
     return Container(
       decoration: BoxDecoration(
-        color: isHighlighted ? const Color(0xFF161B2B) : kSurfaceLow,
+        color: isHighlighted ? Color(0xFF161B2B) : kSurfaceLow,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isHighlighted
@@ -763,7 +777,7 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
         color: kSurfaceLow,
-        border: const Border(
+        border: Border(
           top: BorderSide(color: kSurfaceBorder, width: 1),
         ),
       ),

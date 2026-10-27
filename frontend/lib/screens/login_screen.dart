@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/login_js_helper.dart';
 import '../widgets/otp_verification_view.dart';
+import '../theme/app_theme.dart';
 import 'terms_policy_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,7 +18,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final AuthService _authService = AuthService();
   final ApiService _apiService = ApiService();
 
@@ -32,6 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _pendingAccessToken;
   Timer? _timeoutTimer;
 
+  // Cinema Clapperboard Animation & State
+  late AnimationController _clapController;
+  late Animation<double> _clapAngleAnimation;
+  late Animation<double> _impactFlashAnimation;
+  late Animation<double> _actionStampAnimation;
+  bool _isClapTriggered = false;
+
   // Loading & Feedback
   bool _isGoogleLoading = false;
   bool _isAppleLoading = false;
@@ -39,20 +47,22 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
   String? _successMessage;
 
-  // Design Tokens - Royal Cinema Blue & Sapphire Dark Palette (matching Cineza website)
-  static const Color kBackground = Color(0xFF090A0F); // AppTheme.darkBackground
-  static const Color kSurfaceContainerLowest = Color(0xFF0C0F17);
-  static const Color kSurfaceContainerLow = Color(0xFF141722); // AppTheme.darkSurface
-  static const Color kSurfaceContainer = Color(0xFF1E2336); // AppTheme.darkSurfaceLight
-  static const Color kSurfaceContainerHigh = Color(0xFF262B40); // AppTheme.darkSurfaceBorder
-  static const Color kSurfaceVariant = Color(0xFF333A56);
-  static const Color kPrimary = Color(0xFF60A5FA); // Sky Blue Accent
-  static const Color kPrimaryContainer = Color(0xFF0062FF); // Vivid Royal Cinema Blue
-  static const Color kOnPrimary = Color(0xFF0A265C); // Deep Royal Navy
-  static const Color kSecondaryContainer = Color(0xFFFFB800); // Cineza Gold Star
-  static const Color kSecondary = Color(0xFF38BDF8); // Electric Cyan
-  static const Color kOutline = Color(0xFF94A3B8); // Slate outline
-  static const Color kOnSurface = Color(0xFFF8FAFC); // Crisp white
+  // Dynamic Theme Tokens (Google Stitch Cinema System)
+  bool get isDark => ThemeController.isDark(context);
+
+  Color get kBackground => AppTheme.getBackground(isDark);
+  Color get kSurfaceContainerLowest => isDark ? AppTheme.darkSurfaceLowest : AppTheme.lightSurfaceContainer;
+  Color get kSurfaceContainerLow => isDark ? AppTheme.darkSurface : AppTheme.lightSurface;
+  Color get kSurfaceContainer => isDark ? AppTheme.darkSurfaceContainer : AppTheme.lightSurfaceContainer;
+  Color get kSurfaceContainerHigh => isDark ? AppTheme.darkSurfaceBorder : AppTheme.lightSurfaceBorder;
+  Color get kSurfaceVariant => isDark ? AppTheme.darkSurfaceHighest : AppTheme.lightSurfaceHighest;
+  Color get kPrimary => isDark ? AppTheme.primary : AppTheme.lightPrimary;
+  Color get kPrimaryContainer => isDark ? AppTheme.primary : AppTheme.lightPrimary;
+  Color get kOnPrimary => isDark ? AppTheme.darkOnPrimary : AppTheme.lightOnPrimary;
+  Color get kSecondaryContainer => AppTheme.getGoldAccent(isDark);
+  Color get kSecondary => isDark ? AppTheme.accent : AppTheme.lightPrimary;
+  Color get kOutline => AppTheme.getTextMuted(isDark);
+  Color get kOnSurface => AppTheme.getTextPrimary(isDark);
 
   @override
   void initState() {
@@ -60,14 +70,61 @@ class _LoginScreenState extends State<LoginScreen> {
     _phoneController.addListener(() {
       setState(() {});
     });
+
+    // Clapperboard Clap Controller (Initial open state: -0.34 rad ~= -19.5 degrees)
+    _clapController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+
+    _clapAngleAnimation = Tween<double>(
+      begin: -0.34,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _clapController,
+      curve: const Interval(0.0, 0.70, curve: Curves.easeInQuad),
+    ));
+
+    _impactFlashAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _clapController,
+      curve: const Interval(0.65, 0.90, curve: Curves.easeInOut),
+    ));
+
+    _actionStampAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _clapController,
+      curve: const Interval(0.70, 1.0, curve: Curves.elasticOut),
+    ));
   }
 
   @override
   void dispose() {
     _timeoutTimer?.cancel();
+    _clapController.dispose();
     _phoneController.dispose();
     _usernameController.dispose();
     super.dispose();
+  }
+
+  // --- CINEMA CLAP & NAVIGATION TRIGGER ---
+
+  Future<void> _triggerClapAndNavigate() async {
+    if (_isClapTriggered) return;
+    setState(() {
+      _isClapTriggered = true;
+      _errorMessage = null;
+    });
+
+    playClapperSound();
+    await _clapController.forward();
+    await Future.delayed(const Duration(milliseconds: 550));
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, '/');
   }
 
   // --- AUTH ACTIONS ---
@@ -81,7 +138,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _authService.signInWithGoogle();
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/');
+      await _triggerClapAndNavigate();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -298,7 +355,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (existingUsername != null &&
         existingUsername.isNotEmpty &&
         existingUsername != 'Cineza User') {
-      Navigator.pushReplacementNamed(context, '/');
+      await _triggerClapAndNavigate();
     } else {
       // Transition immediately to the username setup form!
       setState(() {
@@ -358,7 +415,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/');
+      await _triggerClapAndNavigate();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -471,146 +528,334 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final hasValidPhone = _cleanPhoneDigits(_phoneController.text).length == 10;
 
-    return Scaffold(
-      backgroundColor: kBackground,
-      body: Stack(
-        children: [
-          // Cinematic Ambient Background Glows
-          Positioned(
-            top: -120,
-            left: MediaQuery.of(context).size.width * 0.2,
-            child: Container(
-              width: 380,
-              height: 380,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kPrimaryContainer.withValues(alpha: 0.12),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -120,
-            right: MediaQuery.of(context).size.width * 0.2,
-            child: Container(
-              width: 450,
-              height: 450,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: kSecondary.withValues(alpha: 0.10),
-              ),
-            ),
-          ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeController.themeMode,
+      builder: (context, currentMode, _) {
+        final isDarkMode = currentMode == ThemeMode.dark;
 
-          // Main Center Container
-          Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 36),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 500),
+        return Scaffold(
+          backgroundColor: kBackground,
+          body: Stack(
+            children: [
+              // Cinematic Ambient Background Glows
+              Positioned(
+                top: -120,
+                left: MediaQuery.of(context).size.width * 0.2,
                 child: Container(
+                  width: 380,
+                  height: 380,
                   decoration: BoxDecoration(
-                    color: kSurfaceContainerLow.withValues(alpha: 0.94),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: kSurfaceContainerHigh.withValues(alpha: 0.8),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.55),
-                        blurRadius: 40,
-                        offset: const Offset(0, 20),
-                        spreadRadius: -4,
-                      ),
-                      BoxShadow(
-                        color: kPrimaryContainer.withValues(alpha: 0.05),
-                        blurRadius: 50,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(24),
-                    child: Stack(
-                      children: [
-                        // Subtle Top Neon Accent Line
-                        Positioned(
-                          top: 0,
-                          left: 48,
-                          right: 48,
-                          height: 2,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Colors.transparent,
-                                  kPrimaryContainer,
-                                  kSecondary,
-                                  Colors.transparent,
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 36,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // 1. Header & Cineza Logo Badge
-                              if (_needsUsername)
-                                _buildUsernameSetupHeader()
-                              else
-                                _buildHeaderSection(),
-                              const SizedBox(height: 28),
-
-                              // Feedback / Error Banner
-                              if (_errorMessage != null || _successMessage != null)
-                                _buildStatusBanner(),
-
-                              // State switcher: Username Setup vs OTP view vs Phone/Social form
-                              if (_needsUsername) ...[
-                                _buildUsernameSetupForm(),
-                              ] else if (_otpSent) ...[
-                                _buildAnimatedOtpSection(),
-                              ] else ...[
-                                // 2. Direct Mobile Number Input & Continue Button
-                                _buildPhoneOtpForm(hasValidPhone),
-
-                                const SizedBox(height: 24),
-
-                                // 3. Modern Splitter / Divider
-                                _buildDivider(),
-                                const SizedBox(height: 20),
-
-                                // 4. Social Auth Matrix (Google & Apple)
-                                _buildSocialMatrix(),
-                                const SizedBox(height: 28),
-
-                                // 5. Cinema Benefits Micro Bar
-                                _buildCinemaBenefitsBar(),
-                                const SizedBox(height: 24),
-
-                                // 6. Terms & Security Footer
-                                _buildTermsFooter(),
-                              ],
-                            ],
-
-                          ),
-                        ),
-                      ],
-                    ),
+                    shape: BoxShape.circle,
+                    color: kPrimary.withValues(alpha: isDarkMode ? 0.12 : 0.05),
                   ),
                 ),
               ),
-            ),
+              Positioned(
+                bottom: -120,
+                right: MediaQuery.of(context).size.width * 0.2,
+                child: Container(
+                  width: 450,
+                  height: 450,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: kSecondaryContainer.withValues(alpha: isDarkMode ? 0.08 : 0.04),
+                  ),
+                ),
+              ),
+
+              // Main Center Cinema Clapperboard Container
+              Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+                  child: AnimatedBuilder(
+                    animation: _clapController,
+                    builder: (context, _) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final clapperWidth = (screenWidth < 590 ? screenWidth - 32 : 558.0).clamp(290.0, 558.0);
+                      final stickHeight = clapperWidth < 380 ? 32.0 : 38.0;
+                      // Maximum vertical rise of the angled stick is clapperWidth * sin(19.5 deg) ~= clapperWidth * 0.33
+                      final topClearance = clapperWidth * 0.34;
+                      final stripeW = clapperWidth < 400 ? 20.0 : 25.0;
+
+                      return SizedBox(
+                        width: clapperWidth,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // 1. TOP CLAPPER STICKS AREA (Upper moving stick + lower stationary stick)
+                            SizedBox(
+                              width: clapperWidth,
+                              height: topClearance + stickHeight,
+                              child: Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  // Lower Stationary Stick (directly above the slate body)
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    height: stickHeight,
+                                    child: CustomPaint(
+                                      painter: ClapperStickPainter(
+                                        isTop: false,
+                                        stripeWidth: stripeW,
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Upper Moving Stick (pivoting on bottom-left hinge)
+                                  Positioned(
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    height: stickHeight,
+                                    child: Transform(
+                                      alignment: Alignment.bottomLeft,
+                                      transform: Matrix4.rotationZ(_clapAngleAnimation.value),
+                                      child: CustomPaint(
+                                        painter: ClapperStickPainter(
+                                          isTop: true,
+                                          stripeWidth: stripeW,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Impact Flash Beam when the two sticks collide shut
+                                  Positioned(
+                                    left: 45,
+                                    right: 0,
+                                    bottom: 0,
+                                    height: 5,
+                                    child: Builder(
+                                      builder: (context) {
+                                        final v = _impactFlashAnimation.value;
+                                        if (v <= 0.05) return const SizedBox.shrink();
+                                        return Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                Colors.transparent,
+                                                AppTheme.goldAccent.withValues(alpha: v * 0.9),
+                                                Colors.white.withValues(alpha: v),
+                                                kPrimary.withValues(alpha: v * 0.8),
+                                                Colors.transparent,
+                                              ],
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.white.withValues(alpha: v * 0.95),
+                                                blurRadius: 18 * v,
+                                                spreadRadius: 4 * v,
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                                  // Metallic Hinge Bracket on left (securing both sticks with screws)
+                                  Positioned(
+                                    left: 0,
+                                    bottom: 0,
+                                    width: clapperWidth < 400 ? 46 : 56,
+                                    height: stickHeight * 1.65,
+                                    child: CustomPaint(
+                                      painter: HingeBracketPainter(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            // 2. MAIN SLATE CHALKBOARD BODY (Holding the login contents)
+                            Container(
+                              width: clapperWidth,
+                              decoration: BoxDecoration(
+                                color: isDarkMode ? const Color(0xFF13151D) : const Color(0xFF1C1F28),
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(24),
+                                  bottomRight: Radius.circular(24),
+                                ),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.14),
+                                  width: 1.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.70),
+                                    blurRadius: 36,
+                                    offset: const Offset(0, 18),
+                                    spreadRadius: 2,
+                                  ),
+                                  BoxShadow(
+                                    color: kPrimary.withValues(alpha: 0.12),
+                                    blurRadius: 45,
+                                    offset: const Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(24),
+                                  bottomRight: Radius.circular(24),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: clapperWidth < 380 ? 18 : 28,
+                                        vertical: 28,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          // 1. Header & Cineza Logo Badge
+                                          if (_needsUsername)
+                                            _buildUsernameSetupHeader()
+                                          else
+                                            _buildHeaderSection(),
+                                          const SizedBox(height: 24),
+
+                                          // Feedback / Error Banner
+                                          if (_errorMessage != null || _successMessage != null)
+                                            _buildStatusBanner(),
+
+                                          // State switcher: Username Setup vs OTP view vs Phone/Social form
+                                          if (_needsUsername) ...[
+                                            _buildUsernameSetupForm(),
+                                          ] else if (_otpSent) ...[
+                                            _buildAnimatedOtpSection(),
+                                          ] else ...[
+                                            // 2. Direct Mobile Number Input & Continue Button
+                                            _buildPhoneOtpForm(hasValidPhone),
+
+                                            const SizedBox(height: 20),
+
+                                            // 3. Modern Splitter / Divider
+                                            _buildDivider(),
+                                            const SizedBox(height: 18),
+
+                                            // 4. Social Auth Matrix (Google & Apple)
+                                            _buildSocialMatrix(),
+                                            const SizedBox(height: 24),
+
+                                            // 5. Terms & Security Footer
+                                            _buildTermsFooter(),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+
+                                    // 3. "ACTION!" Director Stamp Overlay (Appears on successful clap)
+                                    if (_isClapTriggered)
+                                      Positioned.fill(
+                                        child: Builder(
+                                          builder: (context) {
+                                            final scale = _actionStampAnimation.value;
+                                            if (scale <= 0.05) return const SizedBox.shrink();
+                                            return Center(
+                                              child: Transform.rotate(
+                                                angle: -0.08,
+                                                child: Transform.scale(
+                                                  scale: scale,
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.black.withValues(alpha: 0.90),
+                                                      borderRadius: BorderRadius.circular(16),
+                                                      border: Border.all(
+                                                        color: kPrimary,
+                                                        width: 3,
+                                                      ),
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: kPrimary.withValues(alpha: 0.6),
+                                                          blurRadius: 30,
+                                                          spreadRadius: 4,
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: Column(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            const Icon(Icons.movie_filter_rounded, color: Colors.white, size: 28),
+                                                            const SizedBox(width: 10),
+                                                            Text(
+                                                              'ACTION!',
+                                                              style: GoogleFonts.plusJakartaSans(
+                                                                fontSize: 28,
+                                                                fontWeight: FontWeight.w900,
+                                                                letterSpacing: 3.0,
+                                                                color: Colors.white,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                        const SizedBox(height: 6),
+                                                        Text(
+                                                          'SCENE 01: AUTHORIZED • ENTERING CINEZA',
+                                                          style: GoogleFonts.plusJakartaSans(
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.bold,
+                                                            letterSpacing: 1.5,
+                                                            color: AppTheme.goldAccent,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // Top Floating Bar (Return to Movies & CinezaThemeToggle)
+              Positioned(
+                top: 16,
+                left: 20,
+                right: 20,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      tooltip: 'Back to Movies',
+                      onPressed: () => Navigator.pushReplacementNamed(context, '/'),
+                      icon: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: kSurfaceContainerLow,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: kSurfaceContainerHigh),
+                        ),
+                        child: Icon(Icons.arrow_back_rounded, color: kOnSurface, size: 20),
+                      ),
+                    ),
+                    CinezaThemeToggle(compact: MediaQuery.of(context).size.width < 500),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -672,18 +917,6 @@ class _LoginScreenState extends State<LoginScreen> {
             letterSpacing: -0.4,
           ),
         ),
-        const SizedBox(height: 6),
-
-        // Subtitle
-        Text(
-          'Access exclusive premieres, instant seat reservations, curated snack combos & star tier rewards.',
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            fontSize: 13.5,
-            color: kOutline,
-            height: 1.5,
-          ),
-        ),
       ],
     );
   }
@@ -714,7 +947,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.person_pin_rounded,
                 color: kSecondary,
                 size: 22,
@@ -783,7 +1016,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.account_circle_outlined,
                 color: kPrimary,
                 size: 20,
@@ -935,7 +1168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  const Icon(
+                  Icon(
                     Icons.expand_more_rounded,
                     size: 16,
                     color: kOutline,
@@ -985,7 +1218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     if (hasValidPhone)
-                      const Icon(
+                      Icon(
                         Icons.check_circle_rounded,
                         color: kPrimary,
                         size: 18,
@@ -1021,7 +1254,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       height: 48,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [kPrimaryContainer, kOnPrimary],
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
@@ -1183,7 +1416,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   : Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.apple_rounded,
                           size: 20,
                           color: kOnSurface,
@@ -1200,70 +1433,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- CINEMA BENEFITS MICRO BAR ---
-
-  Widget _buildCinemaBenefitsBar() {
-    return Container(
-      padding: const EdgeInsets.only(top: 20),
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(
-            color: kSurfaceVariant.withValues(alpha: 0.4),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _benefitItem(
-            customIcon: Image.asset(
-              'assets/images/cineza_logo_transparent.png',
-              width: 20,
-              height: 20,
-              fit: BoxFit.contain,
-            ),
-            label: 'Instant E-Ticket',
-          ),
-          Container(width: 1, height: 24, color: kSurfaceVariant),
-          _benefitItem(
-            icon: Icons.fastfood_rounded,
-            iconColor: kPrimary,
-            label: '20% Snack Off',
-          ),
-          Container(width: 1, height: 24, color: kSurfaceVariant),
-          _benefitItem(
-            icon: Icons.stars_rounded,
-            iconColor: kSecondaryContainer,
-            label: 'Star Club Points',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _benefitItem({
-    IconData? icon,
-    Color? iconColor,
-    Widget? customIcon,
-    required String label,
-  }) {
-    return Column(
-      children: [
-        customIcon ?? Icon(icon, size: 20, color: iconColor),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: kOnSurface,
           ),
         ),
       ],
@@ -1411,3 +1580,153 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+/// Authentic Cinema Clapperboard Diagonal Striped Stick Painter
+class ClapperStickPainter extends CustomPainter {
+  final bool isTop;
+  final double stripeWidth;
+
+  const ClapperStickPainter({
+    required this.isTop,
+    this.stripeWidth = 26.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndCorners(
+      rect,
+      topLeft: isTop ? const Radius.circular(6) : Radius.zero,
+      topRight: const Radius.circular(6),
+      bottomLeft: isTop ? const Radius.circular(4) : Radius.zero,
+      bottomRight: isTop ? const Radius.circular(4) : Radius.zero,
+    );
+
+    canvas.save();
+    canvas.clipRRect(rrect);
+
+    // Deep slate black base
+    final basePaint = Paint()..color = const Color(0xFF141720);
+    canvas.drawRect(rect, basePaint);
+
+    // Diagonal White Stripes at ~45 degrees
+    final stripePaint = Paint()
+      ..color = const Color(0xFFF8FAFC)
+      ..style = PaintingStyle.fill;
+
+    final slant = size.height * 0.95;
+    final step = stripeWidth * 2.0;
+
+    for (double x = -size.height * 1.5; x < size.width + size.height * 1.5; x += step) {
+      final path = Path()
+        ..moveTo(x, size.height)
+        ..lineTo(x + slant, 0)
+        ..lineTo(x + slant + stripeWidth, 0)
+        ..lineTo(x + stripeWidth, size.height)
+        ..close();
+      canvas.drawPath(path, stripePaint);
+    }
+
+    // Top surface shine / bevel gradient
+    final bevelPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Colors.white.withValues(alpha: 0.35),
+          Colors.transparent,
+          Colors.black.withValues(alpha: 0.45),
+        ],
+        stops: const [0.0, 0.22, 1.0],
+      ).createShader(rect);
+    canvas.drawRect(rect, bevelPaint);
+
+    // Outer subtle border
+    final borderPaint = Paint()
+      ..color = const Color(0xFF0F1117)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRect(rect, borderPaint);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant ClapperStickPainter oldDelegate) {
+    return oldDelegate.isTop != isTop || oldDelegate.stripeWidth != stripeWidth;
+  }
+}
+
+/// Realistic Metallic Gunmetal Hinge Bracket with Silver Screws
+class HingeBracketPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final bracketRRect = RRect.fromRectAndCorners(
+      rect,
+      topLeft: const Radius.circular(6),
+      bottomLeft: const Radius.circular(6),
+      topRight: const Radius.circular(4),
+      bottomRight: const Radius.circular(4),
+    );
+
+    // Dark brushed gunmetal gradient
+    final metalPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF4C5466),
+          Color(0xFF262A34),
+          Color(0xFF1B1E26),
+          Color(0xFF383E4C),
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(bracketRRect, metalPaint);
+
+    // Bracket border highlight
+    final borderPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawRRect(bracketRRect, borderPaint);
+
+    // Metallic Screws / Rivets
+    void drawScrew(Offset center, double r) {
+      // Outer shadow
+      final shadowPaint = Paint()..color = Colors.black45;
+      canvas.drawCircle(Offset(center.dx, center.dy + 1), r, shadowPaint);
+
+      // Silver metal face
+      final screwPaint = Paint()
+        ..shader = const RadialGradient(
+          colors: [
+            Color(0xFFE2E8F0),
+            Color(0xFF94A3B8),
+            Color(0xFF475569),
+          ],
+        ).createShader(Rect.fromCircle(center: center, radius: r));
+      canvas.drawCircle(center, r, screwPaint);
+
+      // Screw slot (cross line)
+      final slotPaint = Paint()
+        ..color = const Color(0xFF1E293B)
+        ..strokeWidth = 1.2
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+        Offset(center.dx - r * 0.65, center.dy),
+        Offset(center.dx + r * 0.65, center.dy),
+        slotPaint,
+      );
+    }
+
+    final screwRadius = size.width < 50 ? 3.8 : 4.5;
+    drawScrew(Offset(size.width * 0.35, size.height * 0.22), screwRadius);
+    drawScrew(Offset(size.width * 0.35, size.height * 0.78), screwRadius);
+    drawScrew(Offset(size.width * 0.72, size.height * 0.78), screwRadius);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+

@@ -12,6 +12,16 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Suppress intrusive yellow-and-black hazard warning strips on web zoom
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    final isOverflow = details.exceptionAsString().contains('overflowed by');
+    if (isOverflow) {
+      // Return an empty box so zoom clipping is seamless and never displays debug stripes
+      return const SizedBox.shrink();
+    }
+    return ErrorWidget(details.exception);
+  };
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

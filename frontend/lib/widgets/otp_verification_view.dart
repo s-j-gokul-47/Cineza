@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
 
 enum OtpPhase { idle, typing, verifying, success, error }
 
@@ -18,6 +19,7 @@ class OtpVerificationView extends StatefulWidget {
   final String successSubtitle;
   final String errorTitle;
   final String defaultErrorSubtitle;
+  final bool showCancelOnlyOnError;
 
   const OtpVerificationView({
     super.key,
@@ -26,6 +28,7 @@ class OtpVerificationView extends StatefulWidget {
     required this.onSuccess,
     required this.onResend,
     this.onCancel,
+    this.showCancelOnlyOnError = true,
     this.title = "Let's verify your number",
     this.subtitle = "We've sent a 4-digit code to your phone.",
     this.successTitle = "Verified successfully",
@@ -47,6 +50,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
   OtpPhase _phase = OtpPhase.idle;
   String _customError = "";
   final List<Timer> _timers = [];
+  bool _hasVerificationFailed = false;
 
   // Animation Controllers
   late AnimationController _shakeController;
@@ -190,6 +194,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
     setState(() {
       _phase = OtpPhase.error;
       _customError = message;
+      _hasVerificationFailed = true;
     });
 
     _shakeController.forward(from: 0);
@@ -210,9 +215,17 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = ThemeController.isDark(context);
     final activeIndex = math.min(_code.length, widget.length - 1);
     final isError = _phase == OtpPhase.error;
     final isSuccess = _phase == OtpPhase.success;
+
+    final containerBg = isDark ? const Color(0xFF141722) : Colors.white;
+    final containerBorder = isSuccess
+        ? const Color(0xFF34D399).withValues(alpha: 0.6)
+        : isError
+            ? const Color(0xFFEF4444).withValues(alpha: 0.6)
+            : (isDark ? const Color(0xFF262B40) : const Color(0xFFE2E8F0));
 
     return GestureDetector(
       onTap: () => _focusNode.requestFocus(),
@@ -221,14 +234,10 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
         duration: const Duration(milliseconds: 400),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
         decoration: BoxDecoration(
-          color: const Color(0xFF141722),
+          color: containerBg,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: isSuccess
-                ? const Color(0xFF34D399).withValues(alpha: 0.6)
-                : isError
-                    ? const Color(0xFFEF4444).withValues(alpha: 0.6)
-                    : const Color(0xFF262B40),
+            color: containerBorder,
             width: 1.2,
           ),
           boxShadow: [
@@ -246,7 +255,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
               )
             else
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
+                color: isDark ? Colors.black.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.06),
                 blurRadius: 30,
                 offset: const Offset(0, 10),
               ),
@@ -289,15 +298,15 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 1. Heading Slot with Crossfade
-                _buildHeadingSlot(isSuccess, isError),
+                _buildHeadingSlot(isSuccess, isError, isDark),
                 const SizedBox(height: 24),
 
                 // 2. Hidden Real Keystroke Input + Animated Boxes / Checkmark
-                _buildBodySlot(activeIndex, isSuccess, isError),
+                _buildBodySlot(activeIndex, isSuccess, isError, isDark),
                 const SizedBox(height: 24),
 
                 // 3. Footer with Resend & Change Phone actions
-                _buildFooter(),
+                _buildFooter(isDark),
               ],
             ),
           ],
@@ -308,7 +317,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
 
   // --- HEADING SLOT ---
 
-  Widget _buildHeadingSlot(bool isSuccess, bool isError) {
+  Widget _buildHeadingSlot(bool isSuccess, bool isError, bool isDark) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       child: Column(
@@ -328,7 +337,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
                   ? const Color(0xFF34D399)
                   : isError
                       ? const Color(0xFFEF4444)
-                      : const Color(0xFFF8FAFC),
+                      : (isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A)),
               letterSpacing: -0.3,
             ),
           ),
@@ -346,7 +355,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
               fontSize: 13,
               color: isError
                   ? const Color(0xFFFCA5A5)
-                  : const Color(0xFF94A3B8),
+                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
               height: 1.45,
             ),
           ),
@@ -357,7 +366,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
 
   // --- BODY SLOT ---
 
-  Widget _buildBodySlot(int activeIndex, bool isSuccess, bool isError) {
+  Widget _buildBodySlot(int activeIndex, bool isSuccess, bool isError, bool isDark) {
     return Stack(
       alignment: Alignment.center,
       children: [
@@ -382,7 +391,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 400),
           child: !isSuccess
-              ? _buildOtpRow(activeIndex, isError)
+              ? _buildOtpRow(activeIndex, isError, isDark)
               : _buildSuccessCheckmark(),
         ),
       ],
@@ -391,11 +400,10 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
 
   // --- OTP ROW OF BOXES ---
 
-  Widget _buildOtpRow(int activeIndex, bool isError) {
+  Widget _buildOtpRow(int activeIndex, bool isError, bool isDark) {
     return AnimatedBuilder(
       animation: _shakeController,
       builder: (context, child) {
-        // Horizontal shake: [0, -12, 12, -8, 8, -4, 4, 0]
         double shakeX = 0;
         if (isError && _shakeController.value > 0) {
           final t = _shakeController.value;
@@ -422,6 +430,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
                   isActive: isActive,
                   isVerifying: isVerifying,
                   isError: isError,
+                  isDark: isDark,
                 ),
               );
             }),
@@ -438,10 +447,13 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
     required bool isActive,
     required bool isVerifying,
     required bool isError,
+    required bool isDark,
   }) {
     Color borderColor;
     Color glowColor;
     double scale = 1.0;
+
+    final primaryAccent = isDark ? const Color(0xFFF84464) : const Color(0xFFE11D48);
 
     if (isError) {
       borderColor = const Color(0xFFEF4444);
@@ -451,16 +463,19 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
       glowColor = const Color(0xFF34D399).withValues(alpha: 0.5);
       scale = 1.05;
     } else if (isActive) {
-      borderColor = const Color(0xFF0062FF); // Royal Cinema Blue
-      glowColor = const Color(0xFF0062FF).withValues(alpha: 0.35);
+      borderColor = primaryAccent;
+      glowColor = primaryAccent.withValues(alpha: 0.35);
     } else {
-      borderColor = const Color(0xFF262B40);
+      borderColor = isDark ? const Color(0xFF262B40) : const Color(0xFFE2E8F0);
       glowColor = Colors.transparent;
     }
 
     final boxWidth = widget.length <= 4 ? 60.0 : 48.0;
     final boxHeight = widget.length <= 4 ? 68.0 : 58.0;
     final fontSize = widget.length <= 4 ? 26.0 : 22.0;
+
+    final filledBg = isDark ? const Color(0xFF1E2336) : const Color(0xFFF1F5F9);
+    final emptyBg = isDark ? const Color(0xFF0C0F17) : Colors.white;
 
     return AnimatedContainer(
       duration: Duration(milliseconds: isVerifying ? (200 + index * 60) : 200),
@@ -470,7 +485,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
       transform: Matrix4.diagonal3Values(scale, scale, 1.0),
       transformAlignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isFilled ? const Color(0xFF1E2336) : const Color(0xFF0C0F17),
+        color: isFilled ? filledBg : emptyBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor, width: isActive ? 2.0 : 1.4),
         boxShadow: [
@@ -495,7 +510,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
                     fontWeight: FontWeight.w700,
                     color: isError
                         ? const Color(0xFFF87171)
-                        : const Color(0xFFF8FAFC),
+                        : (isDark ? const Color(0xFFF8FAFC) : const Color(0xFF0F172A)),
                   ),
                 ),
               )
@@ -504,7 +519,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
                     width: 2,
                     height: 26,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF38BDF8),
+                      color: primaryAccent,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   )
@@ -575,7 +590,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
 
   // --- FOOTER ---
 
-  Widget _buildFooter() {
+  Widget _buildFooter(bool isDark) {
     return Column(
       children: [
         Row(
@@ -583,7 +598,10 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
           children: [
             Text(
               "Didn't receive the code? ",
-              style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF94A3B8)),
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
             ),
             InkWell(
               onTap: _phase == OtpPhase.verifying ? null : widget.onResend,
@@ -592,26 +610,33 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF38BDF8),
+                  color: isDark ? const Color(0xFFF84464) : const Color(0xFFE11D48),
                 ),
               ),
             ),
           ],
         ),
-        if (widget.onCancel != null) ...[
-          const SizedBox(height: 10),
-          InkWell(
-            onTap: widget.onCancel,
-            child: Text(
-              'Change phone number',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: const Color(0xFF64748B),
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
-        ],
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          child: (widget.onCancel != null &&
+                  (!widget.showCancelOnlyOnError || _hasVerificationFailed))
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: InkWell(
+                    onTap: widget.onCancel,
+                    child: Text(
+                      'Change phone number',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
       ],
     );
   }

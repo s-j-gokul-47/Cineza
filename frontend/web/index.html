@@ -16,6 +16,27 @@
   <title>Cineza</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- Google Stitch Cineza Typography - Argent CF (Headings) & Proxima Nova (Body / UI) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600;1,700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'Argent CF';
+      font-style: normal;
+      font-weight: 100 900;
+      src: local('Argent CF'), local('ArgentCF'), local('ArgentCF-Bold'), local('ArgentCF-DemiBold'), local('ArgentCF-Regular');
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Proxima Nova';
+      font-style: normal;
+      font-weight: 100 900;
+      src: local('Proxima Nova'), local('ProximaNova'), local('ProximaNova-Regular'), local('ProximaNova-Bold'), local('ProximaNova-Semibold');
+      font-display: swap;
+    }
+  </style>
+
   <!-- Local secret configuration (excluded from Git) -->
   <script src="msg91_config.js"></script>
 
@@ -161,6 +182,61 @@
         const msg = "MSG91 retryOtp is not ready.";
         console.warn("[Cineza] " + msg);
         if (typeof failureCb === "function") failureCb(msg);
+      }
+    };
+
+    // Authentic Procedural Cinema Clapperboard Clap Sound (Web Audio API)
+    window.cinezaPlayClapperSound = function () {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+
+        const now = ctx.currentTime;
+
+        // 1. Sharp wooden slap transient (triangle pitch drop)
+        const osc = ctx.createOscillator();
+        const oscGain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(75, now + 0.05);
+
+        oscGain.gain.setValueAtTime(0.9, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+        osc.connect(oscGain);
+        oscGain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.07);
+
+        // 2. Heavy hollow wood body impact (filtered noise burst)
+        const bufferSize = Math.floor(ctx.sampleRate * 0.09);
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.22));
+        }
+        const noise = ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(1250, now);
+        filter.Q.setValueAtTime(2.0, now);
+
+        const noiseGain = ctx.createGain();
+        noiseGain.gain.setValueAtTime(0.85, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctx.destination);
+        noise.start(now);
+      } catch (e) {
+        console.warn('[Cineza] Clap sound suppressed:', e);
       }
     };
   </script>
