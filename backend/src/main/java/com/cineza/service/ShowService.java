@@ -26,22 +26,44 @@ public class ShowService {
     private final SeatRepository seatRepository;
     private final BookingRepository bookingRepository;
     private final SeatLockService seatLockService;
+    private final com.cineza.repository.CityRepository cityRepository;
 
     public ShowService(ShowRepository showRepository,
                        SeatRepository seatRepository,
                        BookingRepository bookingRepository,
-                       SeatLockService seatLockService) {
+                       SeatLockService seatLockService,
+                       com.cineza.repository.CityRepository cityRepository) {
         this.showRepository = showRepository;
         this.seatRepository = seatRepository;
         this.bookingRepository = bookingRepository;
         this.seatLockService = seatLockService;
+        this.cityRepository = cityRepository;
     }
 
-    public List<ShowDto> getShows(Long movieId, Long cityId, LocalDate date) {
-        List<Show> shows;
-        if (movieId != null && cityId != null && date != null) {
-            LocalDateTime startOfDay = date.atStartOfDay();
-            LocalDateTime endOfDay = date.atTime(LocalTime.MAX);
+    public List<ShowDto> getShows(Long movieId, Long cityId, String cityName, LocalDate date) {
+        // 1. Resolve city by name if provided
+        if (cityName != null && !cityName.trim().isEmpty()) {
+            Optional<com.cineza.model.City> cityByName = cityRepository.findByNameIgnoreCase(cityName.trim());
+            if (cityByName.isPresent()) {
+                cityId = cityByName.get().getId();
+            } else {
+                String cleanName = cityName.trim().toLowerCase();
+                for (com.cineza.model.City c : cityRepository.findAll()) {
+                    String dbName = c.getName().toLowerCase();
+                    if (cleanName.contains(dbName) || dbName.contains(cleanName)) {
+                        cityId = c.getId();
+                        break;
+                    }
+                }
+            }
+        }
+
+        LocalDate queryDate = (date != null) ? date : LocalDate.now();
+        LocalDateTime startOfDay = queryDate.atStartOfDay();
+        LocalDateTime endOfDay = queryDate.atTime(LocalTime.MAX);
+
+        List<Show> shows = Collections.emptyList();
+        if (movieId != null && cityId != null) {
             shows = showRepository.findShowsByMovieAndCityAndDate(movieId, cityId, startOfDay, endOfDay);
         } else if (movieId != null) {
             shows = showRepository.findByMovieId(movieId);

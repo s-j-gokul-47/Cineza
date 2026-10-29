@@ -5,6 +5,7 @@ import '../models/movie.dart';
 import '../models/show.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import 'location_selector_screen.dart';
 
 class MovieDetailsScreen extends StatefulWidget {
   const MovieDetailsScreen({super.key});
@@ -102,7 +103,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     super.initState();
     ThemeController.themeMode.addListener(_onThemeChanged);
     final today = DateTime.now();
-    _dates = List.generate(5, (index) => today.add(Duration(days: index)));
+    _dates = List.generate(7, (index) => today.add(Duration(days: index)));
   }
 
   void _onThemeChanged() {
@@ -139,6 +140,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
           releaseDate: '2016-05-06',
         );
       }
+      _city ??= City(id: 5, name: 'Chennai', state: 'Tamil Nadu', country: 'India');
       _fetchShows();
     }
   }
@@ -153,6 +155,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     final shows = await _apiService.getShows(
       movieId: currentMovie.id,
       cityId: _city?.id,
+      cityName: _city?.name,
+      movieTitle: currentMovie.title,
       date: dateStr,
     );
 
@@ -162,6 +166,37 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _openLocationSelector() async {
+    final chosenCity = await Navigator.push<City>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => LocationSelectorScreen(
+          currentCity: _city,
+          onLocationConfirmed: (city) {
+            setState(() => _city = city);
+            _fetchShows();
+          },
+        ),
+      ),
+    );
+    if (chosenCity != null && mounted) {
+      setState(() => _city = chosenCity);
+      _fetchShows();
+    }
+  }
+
+  String _formatCurrency(double price) {
+    final country = _city?.country.toLowerCase() ?? '';
+    if (country.contains('united states') || country == 'usa') {
+      return '\$${price.toStringAsFixed(2)}';
+    } else if (country.contains('united kingdom') || country == 'uk') {
+      return '£${price.toStringAsFixed(2)}';
+    } else if (country.contains('emirates') || country == 'dubai' || country == 'uae') {
+      return 'AED ${price.toStringAsFixed(0)}';
+    }
+    return '₹${price.toInt()}';
   }
 
   @override
@@ -218,6 +253,47 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
+              // Location Selector Pill
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: activePrimary.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: _openLocationSelector,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.location_on_rounded, color: activePrimary, size: 15),
+                          const SizedBox(width: 4),
+                          Text(
+                            _city?.name ?? 'Chennai',
+                            style: TextStyle(
+                              color: AppTheme.getTextPrimary(isDark),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          Icon(
+                            Icons.arrow_drop_down_rounded,
+                            color: AppTheme.getTextMuted(isDark),
+                            size: 18,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               Container(
                 margin: const EdgeInsets.only(right: 16),
                 decoration: BoxDecoration(
@@ -443,50 +519,131 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Theatres & Showtimes
+                  // Theatres & Showtimes Section Header
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Container(
                         width: 4,
-                        height: 20,
+                        height: 24,
                         decoration: BoxDecoration(
                           color: activePrimary,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Theatres & Showtimes',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                          color: AppTheme.getTextPrimary(isDark),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Theatres & Showtimes',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -0.5,
+                                color: AppTheme.getTextPrimary(isDark),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Real multiplexes in ${_city?.name ?? "your location"}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.getTextSecondary(isDark),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      InkWell(
+                        onTap: _openLocationSelector,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.getSurfaceLight(isDark),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: activePrimary.withValues(alpha: 0.35)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.edit_location_alt_rounded, size: 14, color: activePrimary),
+                              const SizedBox(width: 5),
+                              Text(
+                                _city?.name ?? 'Change City',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: activePrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: activePrimary),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
                   if (_isLoading)
                     Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(32.0),
-                        child: CircularProgressIndicator(color: activePrimary),
+                        padding: const EdgeInsets.all(36.0),
+                        child: Column(
+                          children: [
+                            CircularProgressIndicator(color: activePrimary),
+                            const SizedBox(height: 14),
+                            Text(
+                              'Fetching live theatres in ${_city?.name ?? "your city"}...',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.getTextSecondary(isDark),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     )
                   else if (showsByTheatre.isEmpty)
                     Container(
-                      padding: const EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
                         color: AppTheme.getSurface(isDark),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
                       ),
                       child: Center(
-                        child: Text(
-                          'No showtimes available for the selected date.',
-                          style: TextStyle(color: AppTheme.getTextSecondary(isDark)),
+                        child: Column(
+                          children: [
+                            Icon(Icons.theaters_outlined, size: 40, color: AppTheme.getTextMuted(isDark)),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No showtimes currently scheduled in ${_city?.name ?? "this city"}.',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.getTextPrimary(isDark),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Try picking another date or switch your city.',
+                              style: TextStyle(fontSize: 12, color: AppTheme.getTextSecondary(isDark)),
+                            ),
+                            const SizedBox(height: 14),
+                            ElevatedButton.icon(
+                              onPressed: _openLocationSelector,
+                              icon: const Icon(Icons.location_city_rounded, size: 16),
+                              label: const Text('Explore Other Cities'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: activePrimary,
+                                foregroundColor: isDark ? Colors.black : Colors.white,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     )
@@ -496,8 +653,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                       final theatreShows = entry.value;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 18),
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           color: AppTheme.getSurface(isDark),
                           borderRadius: BorderRadius.circular(16),
@@ -517,32 +674,79 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.theater_comedy_rounded, color: activePrimary, size: 20),
-                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: activePrimary.withValues(alpha: isDark ? 0.2 : 0.12),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Icon(Icons.theater_comedy_rounded, color: activePrimary, size: 20),
+                                ),
+                                const SizedBox(width: 10),
                                 Expanded(
-                                  child: Text(
-                                    theatreName,
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.getTextPrimary(isDark),
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        theatreName,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.getTextPrimary(isDark),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.place_outlined, size: 12, color: AppTheme.getTextMuted(isDark)),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              theatreShows.first.theatreAddress,
+                                              style: TextStyle(
+                                                color: AppTheme.getTextMuted(isDark),
+                                                fontSize: 12,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              theatreShows.first.theatreAddress,
-                              style: TextStyle(color: AppTheme.getTextMuted(isDark), fontSize: 12),
-                            ),
+                            const SizedBox(height: 16),
+                            Divider(color: AppTheme.getSurfaceBorder(isDark), height: 1),
                             const SizedBox(height: 14),
 
                             // Showtimes Chips
                             Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
+                              spacing: 12,
+                              runSpacing: 12,
                               children: theatreShows.map((show) {
+                                final isImax = show.screenType.toUpperCase().contains('IMAX');
+                                final isDolby = show.screenType.toUpperCase().contains('DOLBY');
+                                final is4Dx = show.screenType.toUpperCase().contains('4DX');
+                                final isVip = show.screenType.toUpperCase().contains('VIP');
+
+                                Color formatColor = AppTheme.getTextMuted(isDark);
+                                Color formatBorderColor = AppTheme.getSurfaceBorder(isDark);
+                                if (isImax) {
+                                  formatColor = isDark ? AppTheme.cyanAccent : const Color(0xFF0284C7);
+                                  formatBorderColor = AppTheme.cyanAccent.withValues(alpha: 0.4);
+                                } else if (is4Dx) {
+                                  formatColor = const Color(0xFFE11D48);
+                                  formatBorderColor = const Color(0xFFE11D48).withValues(alpha: 0.4);
+                                } else if (isVip) {
+                                  formatColor = AppTheme.getGoldAccent(isDark);
+                                  formatBorderColor = AppTheme.getGoldAccent(isDark).withValues(alpha: 0.4);
+                                } else if (isDolby) {
+                                  formatColor = const Color(0xFF8B5CF6);
+                                  formatBorderColor = const Color(0xFF8B5CF6).withValues(alpha: 0.4);
+                                }
+
                                 return InkWell(
                                   onTap: () {
                                     Navigator.pushNamed(
@@ -554,37 +758,69 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                       },
                                     );
                                   },
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                     decoration: BoxDecoration(
                                       color: AppTheme.getSurfaceLight(isDark),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: show.screenType == 'IMAX'
-                                            ? AppTheme.cyanAccent.withValues(alpha: 0.5)
-                                            : AppTheme.getSurfaceBorder(isDark),
-                                      ),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: formatBorderColor),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                     child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.center,
                                       children: [
-                                        Text(
-                                          timeFormat.format(show.startTime),
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: activePrimary,
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 6,
+                                              height: 6,
+                                              decoration: const BoxDecoration(
+                                                color: Color(0xFF22C55E),
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              timeFormat.format(show.startTime),
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: activePrimary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: formatColor.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            show.screenType,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: formatColor,
+                                            ),
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
+                                        const SizedBox(height: 4),
                                         Text(
-                                          show.screenType,
+                                          _formatCurrency(show.baseStartingPrice),
                                           style: TextStyle(
-                                            fontSize: 10,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.w600,
-                                            color: show.screenType == 'IMAX'
-                                                ? (isDark ? AppTheme.cyanAccent : const Color(0xFF0284C7))
-                                                : AppTheme.getTextMuted(isDark),
+                                            color: AppTheme.getTextSecondary(isDark),
                                           ),
                                         ),
                                       ],

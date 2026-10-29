@@ -4,5 +4,7 @@ public enum ScreenType {
     STANDARD,
     IMAX,
     FOUR_DX,
-    DOLBY
+    DOLBY,
+    VIP,
+    DINE_IN
 }

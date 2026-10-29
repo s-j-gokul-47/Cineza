@@ -24,8 +24,9 @@ public class ShowController {
     public ResponseEntity<List<ShowDto>> getShows(
             @RequestParam(required = false) Long movieId,
             @RequestParam(required = false) Long cityId,
+            @RequestParam(required = false) String cityName,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return ResponseEntity.ok(showService.getShows(movieId, cityId, date));
+        return ResponseEntity.ok(showService.getShows(movieId, cityId, cityName, date));
     }
 
     @GetMapping("/{showId}")

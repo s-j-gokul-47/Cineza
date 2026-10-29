@@ -1468,24 +1468,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  Text(
-                    '•',
-                    style: TextStyle(color: AppTheme.getTextMuted(isDark)),
-                  ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.lock_rounded, size: 13, color: isDark ? AppTheme.goldAccent : activePrimary),
-                      const SizedBox(width: 4),
-                      Text(
-                        '256-Bit Bank Encryption',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.getTextMuted(isDark),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
               const SizedBox(height: 14),

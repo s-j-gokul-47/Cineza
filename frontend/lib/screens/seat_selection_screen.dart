@@ -64,12 +64,28 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   Future<void> _loadSeatMap() async {
     setState(() => _isLoading = true);
-    final seatMap = await _apiService.getShowSeatMap(_show.id, lockToken: _activeLockToken);
+    final seatMap = await _apiService.getShowSeatMap(
+      _show.id,
+      lockToken: _activeLockToken,
+      movieTitle: _movie.title,
+      theatreName: _show.theatreName,
+      screenName: _show.screenName,
+      screenType: _show.screenType,
+      basePrice: _show.baseStartingPrice,
+    );
     if (mounted) {
       setState(() {
         _seatMap = seatMap;
         _isLoading = false;
       });
+    }
+  }
+
+  String _formatPrice(double amount) {
+    if (_show.baseStartingPrice >= 100) {
+      return '₹${amount.toInt()}';
+    } else {
+      return '\$${amount.toStringAsFixed(2)}';
     }
   }
 
@@ -153,7 +169,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final seatLabels = _selectedSeats.map((s) => s.label).join(', ');
-            final bookingFee = 3.50;
+            final bookingFee = _show.baseStartingPrice >= 100 ? 30.0 : 3.50;
             final grandTotal = _totalPrice + bookingFee;
 
             return Container(
@@ -242,7 +258,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       children: [
                         Text('Tickets (${_selectedSeats.length} seats)',
                             style: TextStyle(color: AppTheme.getTextSecondary(isDark))),
-                        Text('\$${_totalPrice.toStringAsFixed(2)}',
+                        Text(_formatPrice(_totalPrice),
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               color: AppTheme.getTextPrimary(isDark),
@@ -255,7 +271,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       children: [
                         Text('Booking Fee & Taxes',
                             style: TextStyle(color: AppTheme.getTextSecondary(isDark))),
-                        Text('\$3.50',
+                        Text(_formatPrice(bookingFee),
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
                               color: AppTheme.getTextPrimary(isDark),
@@ -277,7 +293,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                           ),
                         ),
                         Text(
-                          '\$${grandTotal.toStringAsFixed(2)}',
+                          _formatPrice(grandTotal),
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -575,11 +591,12 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           final seats = entry.value;
 
           final bool isTierStart = rowName == 'A' || rowName == 'C' || rowName == 'E';
+          final isINR = _show.baseStartingPrice >= 100;
           final tier = (rowName == 'A' || rowName == 'B')
-              ? 'VIP Recliners (\$24.00)'
+              ? (isINR ? 'VIP Recliners (₹350)' : 'VIP Recliners (\$24.00)')
               : (rowName == 'C' || rowName == 'D')
-                  ? 'Premium (\$18.00)'
-                  : 'Standard (\$14.00)';
+                  ? (isINR ? 'Premium (₹250)' : 'Premium (\$18.00)')
+                  : (isINR ? 'Standard (₹180)' : 'Standard (\$14.00)');
 
           return Column(
             children: [
@@ -706,7 +723,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '\$${_totalPrice.toStringAsFixed(2)}',
+                    _formatPrice(_totalPrice),
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
