@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'api_service.dart';
+import 'location_service.dart';
+import 'login_js_helper.dart';
 
 class AuthService {
   static const String _workerOtpUrl =
@@ -236,12 +238,32 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (_) {}
 
-    if (!kIsWeb) {
-      await GoogleSignIn.instance.signOut();
-    }
+    try {
+      if (!kIsWeb) {
+        await GoogleSignIn.instance.signOut();
+      }
+    } catch (_) {}
+
+    // Erase all user, location, and session-specific data across Cineza
+    clearAllUserData();
+  }
+
+  /// Completely wipes all user, location, and session-specific data across Cineza
+  static void clearAllUserData() {
+    // 1. Reset user's chosen location back to 'LOCATION'
+    LocationService.clearCity();
+
+    // 2. Refresh the API seat-locking session ID so no prior reservations leak
+    ApiService.resetSession();
+
+    // 3. Clear web sessionStorage and any cached auth/otp state
+    clearWebSession();
   }
 
   User? get currentUser => _auth.currentUser;
 }
+

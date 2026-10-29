@@ -12,7 +12,12 @@ class ApiService {
   static const String baseUrl = 'http://localhost:8080/api/v1';
 
   // In-memory session identifier for seat locking
-  static final String sessionId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+  static String sessionId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+
+  /// Reset session identifier on user logout or session termination
+  static void resetSession() {
+    sessionId = 'user_${DateTime.now().millisecondsSinceEpoch}';
+  }
 
   final http.Client _client;
 

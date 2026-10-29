@@ -91,3 +91,13 @@ void playClapperSound() {
   } catch (_) {}
 }
 
+@JS('cinezaClearWebSession')
+external void _clearWebSessionJs();
+
+void clearWebSession() {
+  try {
+    _clearWebSessionJs();
+  } catch (_) {}
+}
+
+

@@ -6,6 +6,7 @@ import '../models/show.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/cineza_animations.dart';
 import 'location_selector_screen.dart';
 
 class MovieDetailsScreen extends StatefulWidget {
@@ -116,6 +117,23 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
     _pulseAnimation = Tween<double>(begin: -3.0, end: 4.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    LocationService.currentCity.addListener(_onLocationChanged);
+  }
+
+  void _onLocationChanged() {
+    if (mounted) {
+      setState(() {
+        _city = LocationService.currentCity.value;
+      });
+      if (_city != null) {
+        _fetchShows();
+      } else {
+        setState(() {
+          _shows = [];
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _onThemeChanged() {
@@ -124,10 +142,12 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
 
   @override
   void dispose() {
+    LocationService.currentCity.removeListener(_onLocationChanged);
     ThemeController.themeMode.removeListener(_onThemeChanged);
     _pulseController.dispose();
     super.dispose();
   }
+
 
   @override
   void didChangeDependencies() {
@@ -485,11 +505,15 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                 fit: StackFit.expand,
                 children: [
                   Container(color: Colors.black),
-                  _buildImageWidget(
-                    _resolveBackdropUrl(movie),
-                    isDark: isDark,
-                    fit: BoxFit.cover,
-                    logoSize: 80,
+                  // React Bits: ParallaxWidget – scroll-driven parallax on backdrop
+                  ParallaxWidget(
+                    factor: 0.25,
+                    child: _buildImageWidget(
+                      _resolveBackdropUrl(movie),
+                      isDark: isDark,
+                      fit: BoxFit.cover,
+                      logoSize: 80,
+                    ),
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -510,6 +534,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
             ),
           ),
 
+
           // Movie Content
           SliverToBoxAdapter(
             child: Padding(
@@ -521,15 +546,22 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipRRect(
+                      // React Bits: SpotlightCard – pointer-tracked glow on poster
+                      SpotlightCard(
+                        spotColor: activePrimary,
+                        spotRadius: 80,
+                        spotOpacity: 0.25,
                         borderRadius: BorderRadius.circular(12),
-                        child: _buildImageWidget(
-                          movie.posterUrl,
-                          isDark: isDark,
-                          width: 85,
-                          height: 125,
-                          fit: BoxFit.cover,
-                          logoSize: 36,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: _buildImageWidget(
+                            movie.posterUrl,
+                            isDark: isDark,
+                            width: 85,
+                            height: 125,
+                            fit: BoxFit.cover,
+                            logoSize: 36,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -537,8 +569,12 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              movie.title,
+                            // React Bits: GradientText – animated gradient on movie title
+                            GradientText(
+                              text: movie.title,
+                              colors: isDark
+                                  ? [const Color(0xFF60A5FA), const Color(0xFFA78BFA), const Color(0xFF38BDF8)]
+                                  : [const Color(0xFF0062FF), const Color(0xFF6366F1), const Color(0xFF0284C7)],
                               style: AppTheme.argentHeading(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,

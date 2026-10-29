@@ -16,3 +16,5 @@ void callRetryOtp(String channel, void Function(dynamic) onSuccess,
 bool get isMsg91Ready => false;
 void initMsg91() {}
 void playClapperSound() {}
+void clearWebSession() {}
+

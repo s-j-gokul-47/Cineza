@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/booking_response.dart';
@@ -31,14 +32,18 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
   bool _isLocking = false;
   bool _isBooking = false;
 
-  final TextEditingController _emailController = TextEditingController(text: 'alex.doe@example.com');
-  final TextEditingController _phoneController = TextEditingController(text: '+1-555-0199');
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
 
   @override
   void initState() {
     super.initState();
+    final user = FirebaseAuth.instance.currentUser;
+    _emailController = TextEditingController(text: user?.email ?? '');
+    _phoneController = TextEditingController(text: user?.phoneNumber ?? '');
     ThemeController.themeMode.addListener(_onThemeChanged);
   }
+
 
   void _onThemeChanged() {
     if (mounted) setState(() {});

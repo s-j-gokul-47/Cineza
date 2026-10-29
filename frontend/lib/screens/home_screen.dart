@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/location_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/cineza_animations.dart';
 import 'location_selector_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -260,6 +261,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late AnimationController _locationPulseController;
   late Animation<double> _locationPulseAnimation;
   Timer? _frequentReminderTimer;
+  StreamSubscription<User?>? _authSubscription;
+  bool _wasLoggedIn = false;
 
   @override
   void initState() {
@@ -279,6 +282,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _selectedCity = LocationService.currentCity.value;
     _loadInitialData();
 
+    _wasLoggedIn = FirebaseAuth.instance.currentUser != null;
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (_wasLoggedIn && user == null) {
+        // User logged out – erase all location and session data
+        _handlePostLogoutReset();
+      }
+      _wasLoggedIn = user != null;
+    });
+
     // Trigger pop-up on home page whenever user hasn't fixed a location
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _selectedCity == null) {
@@ -289,14 +301,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _startFrequentReminderTimer();
   }
 
+  /// Complete reset of local and session state when user logs out
+  void _handlePostLogoutReset() {
+    AuthService.clearAllUserData();
+    if (mounted) {
+      setState(() {
+        _selectedCity = null;
+        _selectedGenre = 'All';
+        _selectedMovie = null;
+        _searchController.clear();
+      });
+      _filterMovies();
+      _startFrequentReminderTimer();
+      _showFrequentLocationPrompt();
+    }
+  }
+
   void _onLocationServiceChanged() {
     if (mounted) {
       setState(() {
         _selectedCity = LocationService.currentCity.value;
       });
+      _filterMovies();
       if (_selectedCity != null) {
         _frequentReminderTimer?.cancel();
-        _filterMovies();
+      } else {
+        _startFrequentReminderTimer();
+        _showFrequentLocationPrompt();
       }
     }
   }
@@ -457,6 +488,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     ThemeController.themeMode.removeListener(_onThemeChanged);
     LocationService.currentCity.removeListener(_onLocationServiceChanged);
     _locationPulseController.dispose();
@@ -592,9 +624,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ],
           ),
-          child: const Text(
-            'CINEZA',
-            style: TextStyle(
+          // React Bits: SplitBlurText – staggered blur-to-sharp letter reveal
+          child: SplitBlurText(
+            text: 'CINEZA',
+            stagger: const Duration(milliseconds: 80),
+            style: const TextStyle(
               fontWeight: FontWeight.w900,
               fontSize: 15,
               letterSpacing: 2.0,
@@ -651,7 +685,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               color: isDark ? AppTheme.darkSurface : Colors.white,
               onSelected: (value) async {
                 if (value == 'logout') {
+                  final messenger = ScaffoldMessenger.of(context);
                   await AuthService().signOut();
+                  _handlePostLogoutReset();
+                  if (mounted) {
+                    messenger.hideCurrentSnackBar();
+                    messenger.showSnackBar(
+                      SnackBar(
+                        content: const Row(
+                          children: [
+                            Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 20),
+                            SizedBox(width: 10),
+                            Text('Logged out. All location and session data has been erased.'),
+                          ],
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 3),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        backgroundColor: isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                      ),
+                    );
+                  }
                 } else if (value == 'edit_username') {
                   _showEditUsernameDialog(context, user);
                 } else if (value == 'terms') {
@@ -1101,21 +1155,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: Image.asset(
-          'assets/images/kollywood_banner.jpg',
-          fit: BoxFit.cover,
-          width: double.infinity,
-          height: double.infinity,
-          alignment: const Alignment(0.0, 0.65),
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: AppTheme.getSurfaceLight(isDark),
-            alignment: Alignment.center,
-            child: Opacity(
-              opacity: 0.2,
-              child: Image.asset(
-                'assets/images/cineza_logo_transparent.png',
-                width: 100,
-                height: 100,
+        // React Bits: Particles overlay on hero banner
+        child: ParticleOverlay(
+          count: 28,
+          color: Colors.white,
+          child: Image.asset(
+            'assets/images/kollywood_banner.jpg',
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+            alignment: const Alignment(0.0, 0.65),
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: AppTheme.getSurfaceLight(isDark),
+              alignment: Alignment.center,
+              child: Opacity(
+                opacity: 0.2,
+                child: Image.asset(
+                  'assets/images/cineza_logo_transparent.png',
+                  width: 100,
+                  height: 100,
+                ),
               ),
             ),
           ),
@@ -1136,24 +1195,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           },
         );
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.getSurface(isDark),
+      // React Bits: TiltedCard - 3D perspective tilt on hover
+      child: TiltedCard(
+        maxTilt: 7.0,
+        scale: 1.04,
+        child: SpotlightCard(
+          spotColor: activePrimary,
+          spotRadius: 100,
+          spotOpacity: 0.15,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
-          boxShadow: isDark
-              ? null
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppTheme.getSurface(isDark),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
+              boxShadow: isDark
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Poster
             Expanded(
@@ -1213,10 +1281,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    movie.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  // React Bits: ShinyText – sweeping light sheen on movie title
+                  ShinyText(
+                    text: movie.title,
+                    shineColor: Colors.white,
+                    period: const Duration(seconds: 4),
                     style: AppTheme.argentHeading(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
@@ -1235,6 +1304,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
           ],
+            ),
+          ),
         ),
       ),
     );

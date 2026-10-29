@@ -239,6 +239,20 @@
         console.warn('[Cineza] Clap sound suppressed:', e);
       }
     };
+
+    // Erase all web session storage, cookies/states on user logout
+    window.cinezaClearWebSession = function () {
+      try {
+        if (window.sessionStorage) {
+          window.sessionStorage.clear();
+        }
+        window.cinezaMsg91LastSuccess = null;
+        window.cinezaMsg91LastError = null;
+        console.log('[Cineza] All web session and cached states erased successfully.');
+      } catch (e) {
+        console.warn('[Cineza] Error clearing web session:', e);
+      }
+    };
   </script>
 </head>
 <body>
