@@ -183,83 +183,12 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
           _shows = [];
           _isLoading = false;
         });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _city == null) {
-            _showChooseLocationBanner();
-          }
-        });
       }
     }
   }
 
   void _showChooseLocationBanner() {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    final isDark = ThemeController.isDark(context);
-    final activePrimary = AppTheme.getPrimary(isDark);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-        duration: const Duration(seconds: 4),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: activePrimary, width: 1.5),
-        ),
-        content: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: activePrimary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.arrow_upward_rounded, color: activePrimary, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Choose a location',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13.5,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Tap the LOCATION symbol in the top bar to select your city & book tickets.',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: isDark ? Colors.white70 : Colors.black54,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                _openLocationSelector();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: activePrimary,
-                foregroundColor: isDark ? Colors.black : Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Choose', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            ),
-          ],
-        ),
-      ),
-    );
+    _openLocationSelector();
   }
 
   Future<void> _fetchShows() async {

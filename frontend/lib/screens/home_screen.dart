@@ -263,6 +263,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Timer? _frequentReminderTimer;
   StreamSubscription<User?>? _authSubscription;
   bool _wasLoggedIn = false;
+  final OverlayPortalController _locationPopupController = OverlayPortalController();
+  final LayerLink _locationLayerLink = LayerLink();
 
   @override
   void initState() {
@@ -324,6 +326,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       });
       _filterMovies();
       if (_selectedCity != null) {
+        if (_locationPopupController.isShowing) {
+          _locationPopupController.hide();
+        }
         _frequentReminderTimer?.cancel();
       } else {
         _startFrequentReminderTimer();
@@ -349,77 +354,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _showFrequentLocationPrompt() {
-    if (_selectedCity != null || !mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    final isDark = ThemeController.isDark(context);
-    final activePrimary = AppTheme.getPrimary(isDark);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-        duration: const Duration(seconds: 4),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: BorderSide(color: activePrimary, width: 1.5),
-        ),
-        content: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: activePrimary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.near_me_rounded, color: activePrimary, size: 18),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Choose a Location',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                      color: isDark ? Colors.white : Colors.black87,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Tap the LOCATION button above to explore theatres & movies near you.',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      color: isDark ? Colors.white70 : Colors.black54,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                _openLocationSelector();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: activePrimary,
-                foregroundColor: isDark ? Colors.black : Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: const Text('Select', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-            ),
-          ],
-        ),
-      ),
-    );
+    if (_selectedCity != null || !mounted) {
+      if (_locationPopupController.isShowing) {
+        _locationPopupController.hide();
+      }
+      return;
+    }
+    if (!_locationPopupController.isShowing) {
+      _locationPopupController.show();
+    }
   }
 
   Future<void> _openLocationSelector() async {
+    if (_locationPopupController.isShowing) {
+      _locationPopupController.hide();
+    }
     final chosenCity = await Navigator.push<City>(
       context,
       MaterialPageRoute(
@@ -488,6 +437,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    if (_locationPopupController.isShowing) {
+      _locationPopupController.hide();
+    }
     _authSubscription?.cancel();
     ThemeController.themeMode.removeListener(_onThemeChanged);
     LocationService.currentCity.removeListener(_onLocationServiceChanged);
@@ -1707,7 +1659,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ],
     );
 
-    return Tooltip(
+    final locationButton = Tooltip(
       message: hasCity
           ? 'Region Discovery: $cityName, $stateName (Click to change)'
           : 'Location: Not selected (Click to set location)',
@@ -1838,5 +1790,212 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ),
       ),
     );
+
+    return CompositedTransformTarget(
+      link: _locationLayerLink,
+      child: OverlayPortal(
+        controller: _locationPopupController,
+        overlayChildBuilder: (context) {
+          if (_selectedCity != null) return const SizedBox.shrink();
+          return CompositedTransformFollower(
+            link: _locationLayerLink,
+            showWhenUnlinked: false,
+            targetAnchor: Alignment.bottomRight,
+            followerAnchor: Alignment.topRight,
+            offset: const Offset(0, 6),
+            child: Align(
+              alignment: Alignment.topRight,
+              child: Material(
+                color: Colors.transparent,
+                child: _buildLocationPopoverBubble(isDark, activePrimary),
+              ),
+            ),
+          );
+        },
+        child: locationButton,
+      ),
+    );
+  }
+
+  /// Anchored Callout Bubble attached directly below the LOCATION button
+  Widget _buildLocationPopoverBubble(bool isDark, Color activePrimary) {
+    return Container(
+      width: 275,
+      margin: const EdgeInsets.only(right: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Upward pointing arrow caret pointing directly into the location button
+          Padding(
+            padding: const EdgeInsets.only(right: 36),
+            child: CustomPaint(
+              size: const Size(14, 8),
+              painter: _PopoverCaretPainter(
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                borderColor: activePrimary,
+              ),
+            ),
+          ),
+          // Main callout bubble card
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: activePrimary, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: activePrimary.withValues(alpha: isDark ? 0.35 : 0.2),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  _locationPopupController.hide();
+                  _openLocationSelector();
+                },
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(5),
+                            decoration: BoxDecoration(
+                              color: activePrimary.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.near_me_rounded, color: activePrimary, size: 15),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Choose a Location',
+                              style: AppTheme.argentHeading(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => _locationPopupController.hide(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(4),
+                              child: Icon(
+                                Icons.close_rounded,
+                                size: 16,
+                                color: isDark ? Colors.white54 : Colors.black45,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Select your city to explore real local theatres and showtimes.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          height: 1.35,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          ElevatedButton(
+                            onPressed: () {
+                              _locationPopupController.hide();
+                              _openLocationSelector();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: activePrimary,
+                              foregroundColor: isDark ? Colors.black : Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              elevation: 0,
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Select City',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                                SizedBox(width: 4),
+                                Icon(Icons.arrow_forward_rounded, size: 13),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
+
+/// Upward pointer caret for the location popover bubble
+class _PopoverCaretPainter extends CustomPainter {
+  final Color color;
+  final Color borderColor;
+
+  const _PopoverCaretPainter({required this.color, required this.borderColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height + 1)
+      ..lineTo(0, size.height + 1)
+      ..close();
+
+    final fillPaint = Paint()..color = color;
+    canvas.drawPath(path, fillPaint);
+
+    final borderPaint = Paint()
+      ..color = borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final borderPath = Path()
+      ..moveTo(0, size.height)
+      ..lineTo(size.width / 2, 0)
+      ..lineTo(size.width, size.height);
+
+    canvas.drawPath(borderPath, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PopoverCaretPainter oldDelegate) {
+    return oldDelegate.color != color || oldDelegate.borderColor != borderColor;
+  }
+}
+
