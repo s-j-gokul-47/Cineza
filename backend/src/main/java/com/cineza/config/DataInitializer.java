@@ -170,6 +170,8 @@ public class DataInitializer implements CommandLineRunner {
         // Maanaadu, KGF 2, Vikram shows
         showRepository.save(new Show(maanaadu, screen1, today.atTime(22, 0), today.plusDays(1).atTime(0, 50), new BigDecimal("1.20")));
         showRepository.save(new Show(kgf2, screen3, today.atTime(16, 30), today.atTime(18, 50), new BigDecimal("1.00")));
+        showRepository.save(new Show(vikram, screen1, today.atTime(19, 30), today.atTime(22, 25), new BigDecimal("1.25")));
+        showRepository.save(new Show(vikram, screen2, today.atTime(16, 0), today.atTime(18, 55), new BigDecimal("1.20")));
         showRepository.save(new Show(vikram, screenLa, today.atTime(19, 30), today.atTime(22, 0), new BigDecimal("1.25")));
 
         // 7. Seed an existing sample booking for Show 1 so some seats (e.g. C5, C6) show as BOOKED

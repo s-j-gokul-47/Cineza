@@ -40,9 +40,13 @@ class ApiService {
   /// Search and discover movies with city, search, and genre filters
   Future<List<Movie>> getMovies({int? cityId, String? search, String? genre}) async {
     final queryParams = <String, String>{};
-    if (cityId != null) queryParams['cityId'] = cityId.toString();
     if (search != null && search.isNotEmpty) queryParams['search'] = search;
-    if (genre != null && genre.isNotEmpty && genre != 'All') queryParams['genre'] = genre;
+    if (genre != null && genre.isNotEmpty) {
+      queryParams['genre'] = genre;
+    }
+    if (cityId != null && (genre == null || genre.isEmpty || genre != 'All')) {
+      queryParams['cityId'] = cityId.toString();
+    }
 
     final uri = Uri.parse('$baseUrl/movies').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
@@ -56,7 +60,15 @@ class ApiService {
       // Fallback
     }
 
-    return _fallbackMovies;
+    var result = List<Movie>.from(_fallbackMovies);
+    if (genre != null && genre.isNotEmpty && genre.toLowerCase() != 'all') {
+      result = result.where((m) => m.genre.toLowerCase() == genre.toLowerCase()).toList();
+    }
+    if (search != null && search.isNotEmpty) {
+      final q = search.toLowerCase();
+      result = result.where((m) => m.title.toLowerCase().contains(q) || m.genre.toLowerCase().contains(q)).toList();
+    }
+    return result;
   }
 
   /// Fetch single movie details

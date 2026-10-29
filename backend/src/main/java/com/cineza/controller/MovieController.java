@@ -30,8 +30,11 @@ public class MovieController {
             return ResponseEntity.ok(movieService.searchMovies(search));
         }
 
-        if (genre != null && !genre.trim().isEmpty() && !"All".equalsIgnoreCase(genre)) {
-            return ResponseEntity.ok(movieService.getMoviesByGenre(genre));
+        if (genre != null && !genre.trim().isEmpty()) {
+            if ("All".equalsIgnoreCase(genre.trim())) {
+                return ResponseEntity.ok(movieService.getAllActiveMovies());
+            }
+            return ResponseEntity.ok(movieService.getMoviesByGenre(genre.trim()));
         }
 
         if (cityId != null) {

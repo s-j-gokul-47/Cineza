@@ -271,7 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final cities = await _apiService.getCities();
     final selected = cities.isNotEmpty ? cities.first : null;
     final movies = await _apiService.getMovies(
-      cityId: selected?.id,
+      cityId: _selectedGenre == 'All' ? null : selected?.id,
       genre: _selectedGenre,
     );
 
@@ -291,7 +291,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _filterMovies() async {
     setState(() => _isLoading = true);
     final movies = await _apiService.getMovies(
-      cityId: _selectedCity?.id,
+      cityId: _selectedGenre == 'All' ? null : _selectedCity?.id,
       search: _searchController.text.trim(),
       genre: _selectedGenre,
     );
