@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,6 +6,7 @@ import '../models/city.dart';
 import '../models/movie.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/location_service.dart';
 import '../theme/app_theme.dart';
 import 'location_selector_screen.dart';
 
@@ -15,7 +17,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
 
   List<City> _cities = [];
@@ -255,11 +257,157 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
+  late AnimationController _locationPulseController;
+  late Animation<double> _locationPulseAnimation;
+  Timer? _frequentReminderTimer;
+
   @override
   void initState() {
     super.initState();
     ThemeController.themeMode.addListener(_onThemeChanged);
+    LocationService.currentCity.addListener(_onLocationServiceChanged);
+
+    _locationPulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
+
+    _locationPulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _locationPulseController, curve: Curves.easeInOut),
+    );
+
+    _selectedCity = LocationService.currentCity.value;
     _loadInitialData();
+
+    // Trigger pop-up on home page whenever user hasn't fixed a location
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _selectedCity == null) {
+        _showFrequentLocationPrompt();
+      }
+    });
+
+    _startFrequentReminderTimer();
+  }
+
+  void _onLocationServiceChanged() {
+    if (mounted) {
+      setState(() {
+        _selectedCity = LocationService.currentCity.value;
+      });
+      if (_selectedCity != null) {
+        _frequentReminderTimer?.cancel();
+        _filterMovies();
+      }
+    }
+  }
+
+  void _startFrequentReminderTimer() {
+    _frequentReminderTimer?.cancel();
+    // Remind frequently every 12 seconds while location is not chosen
+    _frequentReminderTimer = Timer.periodic(const Duration(seconds: 12), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_selectedCity == null) {
+        _showFrequentLocationPrompt();
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  void _showFrequentLocationPrompt() {
+    if (_selectedCity != null || !mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final isDark = ThemeController.isDark(context);
+    final activePrimary = AppTheme.getPrimary(isDark);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: activePrimary, width: 1.5),
+        ),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: activePrimary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.near_me_rounded, color: activePrimary, size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Choose a Location',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap the LOCATION button above to explore theatres & movies near you.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                _openLocationSelector();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: activePrimary,
+                foregroundColor: isDark ? Colors.black : Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Select', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openLocationSelector() async {
+    final chosenCity = await Navigator.push<City>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationSelectorScreen(
+          currentCity: _selectedCity,
+          availableCities: _cities,
+          onLocationConfirmed: (newCity) {
+            setState(() => _selectedCity = newCity);
+            LocationService.setCity(newCity);
+            _filterMovies();
+          },
+        ),
+      ),
+    );
+    if (chosenCity != null && mounted) {
+      setState(() => _selectedCity = chosenCity);
+      LocationService.setCity(chosenCity);
+      _filterMovies();
+    }
   }
 
   void _onThemeChanged() {
@@ -269,9 +417,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
     final cities = await _apiService.getCities();
-    final selected = cities.isNotEmpty ? cities.first : null;
+    // Do NOT default to cities.first! Keep null initially as requested
+    final selected = LocationService.currentCity.value;
     final movies = await _apiService.getMovies(
-      cityId: _selectedGenre == 'All' ? null : selected?.id,
+      cityId: selected?.id,
       genre: _selectedGenre,
     );
 
@@ -309,6 +458,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     ThemeController.themeMode.removeListener(_onThemeChanged);
+    LocationService.currentCity.removeListener(_onLocationServiceChanged);
+    _locationPulseController.dispose();
+    _frequentReminderTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -1489,141 +1641,156 @@ class _HomeScreenState extends State<HomeScreen> {
   // --- INTERACTIVE LOCATION BAR (REGION DISCOVERY) ---
 
   Widget _buildLocationBar(bool isDark, Color activePrimary, {bool compact = false, bool ultraCompact = false}) {
-    final cityName = _selectedCity?.name.isNotEmpty == true ? _selectedCity!.name : 'Mumbai';
-    final stateName = _selectedCity?.state.isNotEmpty == true ? _selectedCity!.state : 'Maharashtra';
+    final hasCity = _selectedCity != null;
+    final cityName = hasCity ? _selectedCity!.name : 'LOCATION';
+    final stateName = hasCity ? _selectedCity!.state : 'Select City';
+
+    final buttonDecoration = BoxDecoration(
+      color: hasCity
+          ? (isDark ? AppTheme.getSurfaceLight(isDark) : const Color(0xFFE8F1FC))
+          : (isDark ? const Color(0xFF0F172A) : const Color(0xFFE0F2FE)),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(
+        color: hasCity
+            ? (isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8))
+            : activePrimary,
+        width: hasCity ? 1.0 : 1.8,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: activePrimary.withValues(alpha: hasCity ? (isDark ? 0.15 : 0.08) : 0.35),
+          blurRadius: hasCity ? 8 : 12,
+          spreadRadius: hasCity ? 0 : 1.0,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    );
 
     return Tooltip(
-      message: 'Region Discovery: $cityName, $stateName (Click to change)',
-      child: Container(
-        margin: EdgeInsets.only(right: ultraCompact ? 2 : (compact ? 6 : 16), top: 7, bottom: 7),
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.getSurfaceLight(isDark) : const Color(0xFFE8F1FC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isDark ? AppTheme.getSurfaceBorder(isDark) : const Color(0xFFCFE0F8),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: activePrimary.withValues(alpha: isDark ? 0.15 : 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () async {
-              final chosenCity = await Navigator.push<City>(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => LocationSelectorScreen(
-                    currentCity: _selectedCity,
-                    availableCities: _cities,
-                    onLocationConfirmed: (newCity) {
-                      setState(() => _selectedCity = newCity);
-                      _filterMovies();
-                    },
-                  ),
-                ),
-              );
-              if (chosenCity != null && mounted) {
-                setState(() => _selectedCity = chosenCity);
-                _filterMovies();
-              }
-            },
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: ultraCompact ? 6 : (compact ? 8 : 12), vertical: 4),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Glowing Pin / GPS Icon
-                  Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      color: activePrimary.withValues(alpha: isDark ? 0.2 : 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.near_me_rounded,
-                      color: activePrimary,
-                      size: 14,
-                    ),
-                  ),
-
-                  if (!ultraCompact) ...[
-                    const SizedBox(width: 6),
-                    if (compact) ...[
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 70),
-                        child: Text(
-                          cityName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.getTextPrimary(isDark),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+      message: hasCity
+          ? 'Region Discovery: $cityName, $stateName (Click to change)'
+          : 'Location: Not selected (Click to set location)',
+      child: AnimatedBuilder(
+        animation: _locationPulseAnimation,
+        builder: (context, child) {
+          final scale = hasCity ? 1.0 : _locationPulseAnimation.value;
+          return Transform.scale(
+            scale: scale,
+            child: child,
+          );
+        },
+        child: Container(
+          margin: EdgeInsets.only(right: ultraCompact ? 2 : (compact ? 6 : 16), top: 7, bottom: 7),
+          decoration: buttonDecoration,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: _openLocationSelector,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: ultraCompact ? 6 : (compact ? 8 : 12), vertical: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Glowing Pin / GPS Icon with pulse indicator
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: activePrimary.withValues(alpha: hasCity ? (isDark ? 0.2 : 0.12) : 0.25),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ] else ...[
-                      // Location Text (Two lines: Region Discovery / City, State)
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'REGION DISCOVERY',
-                                style: TextStyle(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.6,
-                                  color: isDark ? AppTheme.getTextMuted(isDark) : const Color(0xFF64748B),
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Container(
-                                width: 4,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: activePrimary,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 130),
-                            child: Text(
-                              '$cityName, $stateName',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.getTextPrimary(isDark),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                      child: Icon(
+                        Icons.near_me_rounded,
+                        color: activePrimary,
+                        size: 14,
+                      ),
+                    ),
+
+                    if (!ultraCompact) ...[
+                      const SizedBox(width: 6),
+                      if (compact) ...[
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 85),
+                          child: Text(
+                            cityName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: hasCity ? 0 : 0.6,
+                              color: hasCity ? AppTheme.getTextPrimary(isDark) : activePrimary,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
+                        ),
+                      ] else ...[
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  hasCity ? 'REGION DISCOVERY' : 'LOCATION',
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                    color: hasCity
+                                        ? (isDark ? AppTheme.getTextMuted(isDark) : const Color(0xFF64748B))
+                                        : activePrimary,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Container(
+                                  width: 5,
+                                  height: 5,
+                                  decoration: BoxDecoration(
+                                    color: activePrimary,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: activePrimary.withValues(alpha: 0.6),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 130),
+                              child: Text(
+                                hasCity ? '$cityName, $stateName' : 'Choose Location',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: hasCity
+                                      ? AppTheme.getTextPrimary(isDark)
+                                      : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                    if (!ultraCompact) ...[
+                      const SizedBox(width: 3),
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: hasCity
+                            ? (isDark ? AppTheme.getTextMuted(isDark) : const Color(0xFF64748B))
+                            : activePrimary,
+                        size: 15,
                       ),
                     ],
                   ],
-                  if (!ultraCompact) ...[
-                    const SizedBox(width: 3),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: isDark ? AppTheme.getTextMuted(isDark) : const Color(0xFF64748B),
-                      size: 15,
-                    ),
-                  ],
-                ],
+                ),
               ),
             ),
           ),

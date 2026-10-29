@@ -4,6 +4,7 @@ import '../models/city.dart';
 import '../models/movie.dart';
 import '../models/show.dart';
 import '../services/api_service.dart';
+import '../services/location_service.dart';
 import '../theme/app_theme.dart';
 import 'location_selector_screen.dart';
 
@@ -14,7 +15,7 @@ class MovieDetailsScreen extends StatefulWidget {
   State<MovieDetailsScreen> createState() => _MovieDetailsScreenState();
 }
 
-class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
+class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
 
   Movie? _movie;
@@ -98,12 +99,23 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     return movie.backdropUrl;
   }
 
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
     ThemeController.themeMode.addListener(_onThemeChanged);
     final today = DateTime.now();
     _dates = List.generate(7, (index) => today.add(Duration(days: index)));
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: -3.0, end: 4.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   void _onThemeChanged() {
@@ -113,6 +125,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   @override
   void dispose() {
     ThemeController.themeMode.removeListener(_onThemeChanged);
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -123,7 +136,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       if (args != null && args['movie'] is Movie) {
         _movie = args['movie'] as Movie;
-        _city = args['city'] as City?;
+        _city = (args['city'] as City?) ?? LocationService.currentCity.value;
       } else {
         // Fallback default movie if user navigated directly or refreshed on /movie-details
         _movie = Movie(
@@ -139,15 +152,105 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
           imdbScore: 7.9,
           releaseDate: '2016-05-06',
         );
+        _city = LocationService.currentCity.value;
       }
-      _city ??= City(id: 5, name: 'Chennai', state: 'Tamil Nadu', country: 'India');
-      _fetchShows();
+
+      // Do NOT default _city to Chennai! Keep it null if user hasn't chosen location
+      if (_city != null) {
+        _fetchShows();
+      } else {
+        setState(() {
+          _shows = [];
+          _isLoading = false;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _city == null) {
+            _showChooseLocationBanner();
+          }
+        });
+      }
     }
+  }
+
+  void _showChooseLocationBanner() {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final isDark = ThemeController.isDark(context);
+    final activePrimary = AppTheme.getPrimary(isDark);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: activePrimary, width: 1.5),
+        ),
+        content: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: activePrimary.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.arrow_upward_rounded, color: activePrimary, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Choose a location',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 13.5,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap the LOCATION symbol in the top bar to select your city & book tickets.',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                _openLocationSelector();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: activePrimary,
+                foregroundColor: isDark ? Colors.black : Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Choose', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _fetchShows() async {
     final currentMovie = _movie;
-    if (currentMovie == null) return;
+    if (currentMovie == null || _city == null) {
+      setState(() {
+        _shows = [];
+        _isLoading = false;
+      });
+      return;
+    }
     setState(() => _isLoading = true);
     final selectedDate = _dates[_selectedDateIndex];
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
@@ -176,6 +279,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
           currentCity: _city,
           onLocationConfirmed: (city) {
             setState(() => _city = city);
+            LocationService.setCity(city);
             _fetchShows();
           },
         ),
@@ -183,6 +287,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
     );
     if (chosenCity != null && mounted) {
       setState(() => _city = chosenCity);
+      LocationService.setCity(chosenCity);
       _fetchShows();
     }
   }
@@ -253,6 +358,59 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
+              // Pointer Prompt when location is not fixed
+              if (_city == null) ...[
+                AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, _) => Transform.translate(
+                    offset: Offset(_pulseAnimation.value, 0),
+                    child: GestureDetector(
+                      onTap: _openLocationSelector,
+                      child: Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: isDark
+                                  ? [const Color(0xFF18A0FB), const Color(0xFF0062FF)]
+                                  : [const Color(0xFF0062FF), const Color(0xFF2563EB)],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: activePrimary.withValues(alpha: 0.5),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Choose a location',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                  color: isDark ? Colors.black : Colors.white,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 14,
+                                color: isDark ? Colors.black : Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
               // Location Selector Pill
               Center(
                 child: Container(
@@ -261,8 +419,17 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                     color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: activePrimary.withValues(alpha: 0.35),
+                      color: _city == null ? activePrimary : activePrimary.withValues(alpha: 0.35),
+                      width: _city == null ? 1.8 : 1.0,
                     ),
+                    boxShadow: _city == null
+                        ? [
+                            BoxShadow(
+                              color: activePrimary.withValues(alpha: 0.4),
+                              blurRadius: 8,
+                            ),
+                          ]
+                        : null,
                   ),
                   child: InkWell(
                     onTap: _openLocationSelector,
@@ -275,9 +442,9 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                           Icon(Icons.location_on_rounded, color: activePrimary, size: 15),
                           const SizedBox(width: 4),
                           Text(
-                            _city?.name ?? 'Chennai',
+                            _city?.name ?? 'LOCATION',
                             style: TextStyle(
-                              color: AppTheme.getTextPrimary(isDark),
+                              color: _city != null ? AppTheme.getTextPrimary(isDark) : activePrimary,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -472,6 +639,10 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                         final isSelected = index == _selectedDateIndex;
                         return GestureDetector(
                           onTap: () {
+                            if (_city == null) {
+                              _showChooseLocationBanner();
+                              return;
+                            }
                             setState(() => _selectedDateIndex = index);
                             _fetchShows();
                           },
@@ -589,7 +760,9 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  if (_isLoading)
+                  if (_city == null)
+                    _buildNoLocationCard(isDark, activePrimary)
+                  else if (_isLoading)
                     Center(
                       child: Padding(
                         padding: const EdgeInsets.all(36.0),
@@ -843,6 +1016,93 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
       ),
     );
       },
+    );
+  }
+
+  Widget _buildNoLocationCard(bool isDark, Color activePrimary) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      decoration: BoxDecoration(
+        color: AppTheme.getSurface(isDark),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: activePrimary.withValues(alpha: 0.4), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: activePrimary.withValues(alpha: isDark ? 0.15 : 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.arrow_upward_rounded, size: 18, color: activePrimary),
+                const SizedBox(width: 6),
+                Text(
+                  'Choose a location using the location symbol above',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                    color: activePrimary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: activePrimary.withValues(alpha: isDark ? 0.2 : 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.location_on_rounded, size: 44, color: activePrimary),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Choose a location',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                color: AppTheme.getTextPrimary(isDark),
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Text(
+                'Please select your city to discover theatres, real multiplex showtimes, and book your tickets.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  height: 1.4,
+                  color: AppTheme.getTextSecondary(isDark),
+                ),
+              ),
+            ),
+            const SizedBox(height: 22),
+            ElevatedButton.icon(
+              onPressed: _openLocationSelector,
+              icon: const Icon(Icons.near_me_rounded, size: 18),
+              label: const Text(
+                'Choose Location Now',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: activePrimary,
+                foregroundColor: isDark ? Colors.black : Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                elevation: 4,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/city.dart';
+import '../services/location_service.dart';
 import '../theme/app_theme.dart';
 
 /// Region Discovery & Multi-Stage Location Selector Screen
@@ -820,6 +821,7 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
 
     Timer(const Duration(milliseconds: 550), () {
       if (!mounted) return;
+      LocationService.setCity(chosenCity);
       widget.onLocationConfirmed?.call(chosenCity);
       Navigator.of(context).maybePop(chosenCity);
     });
