@@ -514,7 +514,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                                 isDark: isDark,
                               ),
                               _buildLegendItem(
-                                AppTheme.seatSelected,
+                                AppTheme.getSeatSelected(isDark),
                                 'Selected',
                                 isDark: isDark,
                               ),

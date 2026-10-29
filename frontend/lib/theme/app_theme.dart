@@ -36,13 +36,13 @@ class AppTheme {
   static const Color darkSurfaceHighest = Color(0xFF33343B); // Highest Surface / Chips
   static const Color darkSurfaceBright = Color(0xFF373940); // Brightest Dark Surface
 
-  // Stitch Dark Accents
-  static const Color primary = Color(0xFFF84464); // Electric Ruby Crimson
-  static const Color darkPrimary = Color(0xFFF84464);
-  static const Color darkPrimaryContainer = Color(0xFFFF506D); // Stitch Primary Container
-  static const Color darkPrimaryGlow = Color(0xFFFFB2B8); // Primary Fixed / Glow
-  static const Color primaryGlow = Color(0xFFFFB2B8); // Compatible alias
-  static const Color darkOnPrimary = Color(0xFF67001C);
+  // Stitch Dark Accents (Google Stitch Cobalt Blue Cinema Palette)
+  static const Color primary = Color(0xFF18A0FB); // Electric Action Cobalt Blue
+  static const Color darkPrimary = Color(0xFF18A0FB);
+  static const Color darkPrimaryContainer = Color(0xFF004A79); // Stitch Blue Primary Container
+  static const Color darkPrimaryGlow = Color(0xFF60A5FA); // Primary Fixed / Glow
+  static const Color primaryGlow = Color(0xFF60A5FA); // Compatible alias
+  static const Color darkOnPrimary = Colors.white;
   static const Color accent = Color(0xFF38BDF8); // Electric Cinema Cyan
   static const Color cyanAccent = Color(0xFF00F2FF);
   static const Color goldAccent = Color(0xFFFFB800); // Golden Marquee / VIP / Ratings
@@ -56,11 +56,11 @@ class AppTheme {
   static const Color darkTextPrimary = Color(0xFFFFFFFF); // High Emphasis
   static const Color darkTextSecondary = Color(0xFFE2E2EB); // Medium-High Emphasis
   static const Color darkTextMuted = Color(0xFF94A3B8); // Subtitles / Outline
-  static const Color darkOutline = Color(0xFFAA888A); // Subtle Outline
-  static const Color darkOutlineVariant = Color(0xFF5B4042);
+  static const Color darkOutline = Color(0xFF738A9C); // Subtle Blue-Slate Outline
+  static const Color darkOutlineVariant = Color(0xFF3E4E5B);
 
   // ---------------------------------------------------------------------------
-  // GOOGLE STITCH CRISP BRIGHT PALETTE (Luminous Snow & Vibrant Ruby Marquee)
+  // GOOGLE STITCH CRISP BRIGHT PALETTE (Luminous Snow & Vibrant Action Blue)
   // ---------------------------------------------------------------------------
   static const Color lightBackground = Color(0xFFF8FAFC); // Luminous Pearl Canvas
   static const Color lightSurfaceLowest = Color(0xFFFFFFFF);
@@ -72,9 +72,9 @@ class AppTheme {
   static const Color lightSurfaceBright = Color(0xFFFFFFFF);
 
   // Stitch Light Accents
-  static const Color lightPrimary = Color(0xFFE11D48); // Vibrant Ruby Crimson
-  static const Color lightPrimaryContainer = Color(0xFFFFE4E6); // Rose Container
-  static const Color lightPrimaryGlow = Color(0xFFFB7185);
+  static const Color lightPrimary = Color(0xFF0062FF); // Vibrant Royal Cinema Blue
+  static const Color lightPrimaryContainer = Color(0xFFDBEAFE); // Soft Ice Blue Container
+  static const Color lightPrimaryGlow = Color(0xFF3B82F6);
   static const Color lightOnPrimary = Colors.white;
   static const Color lightAccent = Color(0xFF0284C7); // Vivid Sky Blue
   static const Color lightGoldAccent = Color(0xFFD97706); // Amber Gold Marquee
@@ -94,8 +94,8 @@ class AppTheme {
   static const Color lightSeatAvailable = Color(0xFFF1F5F9);
   static const Color lightSeatAvailableBorder = Color(0xFFCBD5E1);
 
-  static const Color seatSelected = Color(0xFFF84464); // Crimson Fill
-  static const Color lightSeatSelected = Color(0xFFE11D48);
+  static const Color seatSelected = Color(0xFF18A0FB); // Vibrant Blue Fill (Dark)
+  static const Color lightSeatSelected = Color(0xFF0062FF); // Deep Royal Blue Fill (Light)
   static const Color seatLocked = Color(0xFFF97316); 
   static const Color darkSeatBooked = Color(0xFF12151E);
   static const Color lightSeatBooked = Color(0xFFE2E8F0);

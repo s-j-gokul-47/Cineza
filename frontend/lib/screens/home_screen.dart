@@ -387,8 +387,8 @@ class _HomeScreenState extends State<HomeScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isDark
-                    ? [const Color(0xFFF84464), const Color(0xFFFF506D)]
-                    : [const Color(0xFFE11D48), const Color(0xFFFB7185)],
+                    ? [const Color(0xFF18A0FB), const Color(0xFF0062FF)]
+                    : [const Color(0xFF0062FF), const Color(0xFF38BDF8)],
               ),
               borderRadius: BorderRadius.circular(7),
               boxShadow: [
@@ -428,8 +428,8 @@ class _HomeScreenState extends State<HomeScreen> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: isDark
-                  ? [const Color(0xFFF84464), const Color(0xFFFF506D)]
-                  : [const Color(0xFFE11D48), const Color(0xFFFB7185)],
+                  ? [const Color(0xFF18A0FB), const Color(0xFF0062FF)]
+                  : [const Color(0xFF0062FF), const Color(0xFF38BDF8)],
             ),
             borderRadius: BorderRadius.circular(8),
             boxShadow: [

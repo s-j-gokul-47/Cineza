@@ -453,7 +453,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
     Color glowColor;
     double scale = 1.0;
 
-    final primaryAccent = isDark ? const Color(0xFFF84464) : const Color(0xFFE11D48);
+    final primaryAccent = AppTheme.getPrimary(isDark);
 
     if (isError) {
       borderColor = const Color(0xFFEF4444);
@@ -610,7 +610,7 @@ class _OtpVerificationViewState extends State<OtpVerificationView>
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? const Color(0xFFF84464) : const Color(0xFFE11D48),
+                  color: AppTheme.getPrimary(isDark),
                 ),
               ),
             ),

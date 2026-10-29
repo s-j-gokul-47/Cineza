@@ -1041,7 +1041,7 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
                 baseline: TextBaseline.alphabetic,
                 child: ShaderMask(
                   shaderCallback: (bounds) => const LinearGradient(
-                    colors: [Color(0xFFF84464), Color(0xFFFF506D), Color(0xFFFFB800)],
+                    colors: [Color(0xFF18A0FB), Color(0xFF0062FF), Color(0xFF38BDF8)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ).createShader(bounds),

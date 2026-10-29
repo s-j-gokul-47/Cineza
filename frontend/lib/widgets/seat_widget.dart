@@ -23,8 +23,8 @@ class SeatWidget extends StatelessWidget {
 
     switch (seat.status) {
       case SeatStatusType.selected:
-        seatBg = isDark ? AppTheme.seatSelected : const Color(0xFF0062FF);
-        borderColor = isDark ? AppTheme.primaryGlow : const Color(0xFF0047BA);
+        seatBg = AppTheme.getSeatSelected(isDark);
+        borderColor = isDark ? const Color(0xFF60A5FA) : const Color(0xFF0047BA);
         break;
       case SeatStatusType.locked:
         seatBg = AppTheme.seatLocked;
@@ -71,7 +71,7 @@ class SeatWidget extends StatelessWidget {
 
     Color textColor;
     if (seat.status == SeatStatusType.selected) {
-      textColor = isDark ? Colors.black87 : Colors.white;
+      textColor = Colors.white;
     } else if (seat.status == SeatStatusType.booked) {
       textColor = isDark ? Colors.white24 : Colors.black26;
     } else {
@@ -84,7 +84,7 @@ class SeatWidget extends StatelessWidget {
       child: InkWell(
         onTap: isClickable ? onTap : null,
         borderRadius: BorderRadius.circular(6),
-        splashColor: AppTheme.primary.withValues(alpha: 0.3),
+        splashColor: AppTheme.getSeatSelected(isDark).withValues(alpha: 0.3),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: 30,
@@ -100,8 +100,8 @@ class SeatWidget extends StatelessWidget {
             boxShadow: seat.status == SeatStatusType.selected
                 ? [
                     BoxShadow(
-                      color: AppTheme.primary.withValues(alpha: 0.4),
-                      blurRadius: 8,
+                      color: AppTheme.getSeatSelected(isDark).withValues(alpha: 0.45),
+                      blurRadius: 10,
                       spreadRadius: 1,
                     )
                   ]
