@@ -576,74 +576,71 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Realistic Mini Cinema Armchair
-        SizedBox(
-          width: 18,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Mini Headrest
-              Container(
-                width: 13,
-                height: 4.5,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2.5)),
-                  border: Border.all(color: effectiveBorder, width: 0.8),
-                ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Mini Headrest
+            Container(
+              width: 13,
+              height: 4.5,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(2.5)),
+                border: Border.all(color: effectiveBorder, width: 0.8),
               ),
-              const SizedBox(height: 1),
-              // Mini Cushion & Armrests
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  // Left armrest
-                  Container(
-                    width: 2.2,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: isDark ? color.withValues(alpha: 0.85) : color,
-                      borderRadius: BorderRadius.circular(1),
-                      border: Border.all(color: effectiveBorder, width: 0.6),
-                    ),
+            ),
+            const SizedBox(height: 1),
+            // Mini Cushion & Armrests
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Left armrest
+                Container(
+                  width: 2.2,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: isDark ? color.withValues(alpha: 0.85) : color,
+                    borderRadius: BorderRadius.circular(1),
+                    border: Border.all(color: effectiveBorder, width: 0.6),
                   ),
-                  const SizedBox(width: 1),
-                  // Center cushion
-                  Container(
-                    width: 11,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: color,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(3)),
-                      border: Border.all(color: effectiveBorder, width: 0.8),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: color.withValues(alpha: 0.6),
-                                blurRadius: 4,
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: icon != null
-                        ? Center(child: Icon(icon, size: 7, color: Colors.white))
+                ),
+                const SizedBox(width: 1),
+                // Center cushion
+                Container(
+                  width: 11,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(3)),
+                    border: Border.all(color: effectiveBorder, width: 0.8),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.6),
+                              blurRadius: 4,
+                            ),
+                          ]
                         : null,
                   ),
-                  const SizedBox(width: 1),
-                  // Right armrest
-                  Container(
-                    width: 2.2,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: isDark ? color.withValues(alpha: 0.85) : color,
-                      borderRadius: BorderRadius.circular(1),
-                      border: Border.all(color: effectiveBorder, width: 0.6),
-                    ),
+                  child: icon != null
+                      ? Center(child: Icon(icon, size: 7, color: Colors.white))
+                      : null,
+                ),
+                const SizedBox(width: 1),
+                // Right armrest
+                Container(
+                  width: 2.2,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: isDark ? color.withValues(alpha: 0.85) : color,
+                    borderRadius: BorderRadius.circular(1),
+                    border: Border.all(color: effectiveBorder, width: 0.6),
                   ),
-                ],
-              ),
-            ],
-          ),
+                ),
+              ],
+            ),
+          ],
         ),
         const SizedBox(width: 7),
         Text(
@@ -665,35 +662,61 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     required Color accentColor,
     required bool isDark,
   }) {
+    final isVIP = tierTitle.contains('VIP');
+    final isPremium = tierTitle.contains('PREMIUM');
+
+    final Color badgeBg = isDark
+        ? accentColor.withValues(alpha: 0.14)
+        : (isVIP
+            ? const Color(0xFFFEF3C7)
+            : (isPremium ? const Color(0xFFE0F2FE) : const Color(0xFFF1F5F9)));
+
+    final Color pillBg = isDark
+        ? accentColor.withValues(alpha: 0.28)
+        : (isVIP
+            ? const Color(0xFFFDE68A)
+            : (isPremium ? const Color(0xFFBAE6FD) : const Color(0xFFE2E8F0)));
+
+    final Color titleColor = isDark
+        ? Colors.white
+        : (isVIP
+            ? const Color(0xFF92400E)
+            : (isPremium ? const Color(0xFF0369A1) : const Color(0xFF334155)));
+
     return Padding(
       padding: const EdgeInsets.only(top: 18, bottom: 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 40,
+            width: 45,
             height: 1,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
                   Colors.transparent,
-                  accentColor.withValues(alpha: isDark ? 0.45 : 0.35),
+                  accentColor.withValues(alpha: isDark ? 0.45 : 0.4),
                 ],
               ),
             ),
           ),
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4.5),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
             decoration: BoxDecoration(
-              color: isDark
-                  ? accentColor.withValues(alpha: 0.12)
-                  : accentColor.withValues(alpha: 0.08),
+              color: badgeBg,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: accentColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                color: accentColor.withValues(alpha: isDark ? 0.4 : 0.35),
                 width: 1,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark ? Colors.black26 : Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -706,21 +729,21 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                     fontSize: 10.5,
                     letterSpacing: 1.1,
                     fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.white : AppTheme.lightTextPrimary,
+                    color: titleColor,
                   ),
                 ),
-                const SizedBox(width: 7),
+                const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1.5),
                   decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: isDark ? 0.25 : 0.15),
+                    color: pillBg,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     price,
                     style: TextStyle(
                       fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: accentColor,
                     ),
                   ),
@@ -729,12 +752,12 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
             ),
           ),
           Container(
-            width: 40,
+            width: 45,
             height: 1,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  accentColor.withValues(alpha: isDark ? 0.45 : 0.35),
+                  accentColor.withValues(alpha: isDark ? 0.45 : 0.4),
                   Colors.transparent,
                 ],
               ),

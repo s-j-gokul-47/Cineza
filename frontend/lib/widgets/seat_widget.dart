@@ -39,13 +39,13 @@ class _SeatWidgetState extends State<SeatWidget> {
     final isPremium = seat.seatType.toUpperCase() == 'PREMIUM';
 
     // Tier-specific dimensions for realistic stadium perspective
-    final double chairWidth = isVIP ? 32.0 : (isPremium ? 29.0 : 27.0);
-    final double headrestWidth = isVIP ? 24.0 : (isPremium ? 22.0 : 20.0);
-    final double headrestHeight = isVIP ? 8.0 : 7.0;
+    final double armrestWidth = isVIP ? 3.5 : (isPremium ? 3.0 : 2.5);
+    const double armrestGap = 1.0;
     final double cushionWidth = isVIP ? 23.0 : (isPremium ? 21.0 : 19.0);
     final double cushionHeight = isVIP ? 20.0 : 18.0;
+    final double headrestWidth = isVIP ? 23.0 : (isPremium ? 21.0 : 19.0);
+    final double headrestHeight = isVIP ? 8.0 : 7.0;
     final double armrestHeight = isVIP ? 16.0 : 14.5;
-    final double armrestWidth = isVIP ? 3.5 : 3.0;
 
     // Palette & Gradients
     Color headrestBg;
@@ -184,9 +184,8 @@ class _SeatWidgetState extends State<SeatWidget> {
             scale: scale,
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOutBack,
-            child: Container(
-              width: chairWidth,
-              margin: const EdgeInsets.symmetric(horizontal: 2.5, vertical: 3.5),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 3.0),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -260,7 +259,7 @@ class _SeatWidgetState extends State<SeatWidget> {
                         ),
                       ),
 
-                      const SizedBox(width: 1.5),
+                      const SizedBox(width: armrestGap),
 
                       // Center Seat Cushion
                       AnimatedContainer(
@@ -312,7 +311,7 @@ class _SeatWidgetState extends State<SeatWidget> {
                         ),
                       ),
 
-                      const SizedBox(width: 1.5),
+                      const SizedBox(width: armrestGap),
 
                       // Right Armrest
                       AnimatedContainer(
