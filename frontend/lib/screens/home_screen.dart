@@ -708,10 +708,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   }
                 } else if (value == 'edit_username') {
                   _showEditUsernameDialog(context, user);
-                } else if (value == 'terms') {
-                  Navigator.pushNamed(context, '/terms-policy', arguments: 0);
-                } else if (value == 'privacy') {
-                  Navigator.pushNamed(context, '/terms-policy', arguments: 1);
                 }
               },
               itemBuilder: (context) => [
@@ -748,32 +744,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       const SizedBox(width: 8),
                       Text(
                         'Change Username',
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'terms',
-                  child: Row(
-                    children: [
-                      Icon(Icons.gavel_rounded, size: 18, color: isDark ? AppTheme.goldAccent : activePrimary),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Terms of Service',
-                        style: TextStyle(color: isDark ? Colors.white : Colors.black87),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'privacy',
-                  child: Row(
-                    children: [
-                      Icon(Icons.shield_outlined, size: 18, color: isDark ? AppTheme.goldAccent : activePrimary),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Privacy Policy',
                         style: TextStyle(color: isDark ? Colors.white : Colors.black87),
                       ),
                     ],
