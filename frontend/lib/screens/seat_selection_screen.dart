@@ -509,24 +509,28 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                             alignment: WrapAlignment.center,
                             children: [
                               _buildLegendItem(
-                                isDark ? AppTheme.darkSeatAvailable : AppTheme.lightSeatAvailable,
-                                'Available',
+                                label: 'Available',
+                                color: isDark ? AppTheme.darkSeatAvailable : AppTheme.lightSeatAvailable,
+                                borderColor: isDark ? AppTheme.darkSeatAvailableBorder : const Color(0xFF94A3B8),
                                 isDark: isDark,
                               ),
                               _buildLegendItem(
-                                AppTheme.getSeatSelected(isDark),
-                                'Selected',
+                                label: 'Selected',
+                                color: AppTheme.getSeatSelected(isDark),
+                                isSelected: true,
                                 isDark: isDark,
                               ),
                               _buildLegendItem(
-                                AppTheme.seatLocked,
-                                'Locked (Redis)',
+                                label: 'Locked',
+                                color: AppTheme.seatLocked,
+                                borderColor: Colors.deepOrangeAccent,
                                 icon: Icons.lock_clock,
                                 isDark: isDark,
                               ),
                               _buildLegendItem(
-                                isDark ? AppTheme.darkSeatBooked : AppTheme.lightSeatBooked,
-                                'Booked',
+                                label: 'Booked',
+                                color: isDark ? AppTheme.darkSeatBooked : AppTheme.lightSeatBooked,
+                                borderColor: isDark ? const Color(0xFF232734) : const Color(0xFFCBD5E1),
                                 isDark: isDark,
                               ),
                             ],
@@ -535,7 +539,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
                         const SizedBox(height: 24),
                         Divider(color: AppTheme.getSurfaceBorder(isDark)),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 8),
 
                         // Interactive Seat Matrix
                         if (_seatMap != null) _buildSeatGrid(isDark),
@@ -555,129 +559,334 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     );
   }
 
-  Widget _buildLegendItem(Color color, String label, {IconData? icon, required bool isDark}) {
+  Widget _buildLegendItem({
+    required String label,
+    required Color color,
+    Color? borderColor,
+    IconData? icon,
+    bool isSelected = false,
+    required bool isDark,
+  }) {
+    final effectiveBorder = borderColor ??
+        (isSelected
+            ? (isDark ? const Color(0xFF60A5FA) : const Color(0xFF3B82F6))
+            : (isDark ? Colors.white30 : Colors.black26));
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
+        // Realistic Mini Cinema Armchair
+        SizedBox(
+          width: 18,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Mini Headrest
+              Container(
+                width: 13,
+                height: 4.5,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(2.5)),
+                  border: Border.all(color: effectiveBorder, width: 0.8),
+                ),
+              ),
+              const SizedBox(height: 1),
+              // Mini Cushion & Armrests
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // Left armrest
+                  Container(
+                    width: 2.2,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: isDark ? color.withValues(alpha: 0.85) : color,
+                      borderRadius: BorderRadius.circular(1),
+                      border: Border.all(color: effectiveBorder, width: 0.6),
+                    ),
+                  ),
+                  const SizedBox(width: 1),
+                  // Center cushion
+                  Container(
+                    width: 11,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(3)),
+                      border: Border.all(color: effectiveBorder, width: 0.8),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.6),
+                                blurRadius: 4,
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: icon != null
+                        ? Center(child: Icon(icon, size: 7, color: Colors.white))
+                        : null,
+                  ),
+                  const SizedBox(width: 1),
+                  // Right armrest
+                  Container(
+                    width: 2.2,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: isDark ? color.withValues(alpha: 0.85) : color,
+                      borderRadius: BorderRadius.circular(1),
+                      border: Border.all(color: effectiveBorder, width: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          child: icon != null
-              ? Icon(icon, size: 10, color: Colors.white70)
-              : null,
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 7),
         Text(
           label,
-          style: TextStyle(fontSize: 12, color: AppTheme.getTextSecondary(isDark)),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: AppTheme.getTextSecondary(isDark),
+          ),
         ),
       ],
     );
   }
 
+  Widget _buildTierHeader({
+    required String tierTitle,
+    required String price,
+    required IconData icon,
+    required Color accentColor,
+    required bool isDark,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 18, bottom: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40,
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  accentColor.withValues(alpha: isDark ? 0.45 : 0.35),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4.5),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? accentColor.withValues(alpha: 0.12)
+                  : accentColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: accentColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 13, color: accentColor),
+                const SizedBox(width: 6),
+                Text(
+                  tierTitle,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    letterSpacing: 1.1,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.white : AppTheme.lightTextPrimary,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: isDark ? 0.25 : 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    price,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: accentColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 40,
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  accentColor.withValues(alpha: isDark ? 0.45 : 0.35),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSeatGrid(bool isDark) {
     final seatsByRow = _seatMap!.seatsByRow;
+    final isINR = _show.baseStartingPrice >= 100;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: seatsByRow.entries.map((entry) {
-          final rowName = entry.key;
-          final seats = entry.value;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          children: seatsByRow.entries.map((entry) {
+            final rowName = entry.key;
+            final seats = entry.value;
 
-          final bool isTierStart = rowName == 'A' || rowName == 'C' || rowName == 'E';
-          final isINR = _show.baseStartingPrice >= 100;
-          final tier = (rowName == 'A' || rowName == 'B')
-              ? (isINR ? 'VIP Recliners (₹350)' : 'VIP Recliners (\$24.00)')
-              : (rowName == 'C' || rowName == 'D')
-                  ? (isINR ? 'Premium (₹250)' : 'Premium (\$18.00)')
-                  : (isINR ? 'Standard (₹180)' : 'Standard (\$14.00)');
+            final bool isTierStart = rowName == 'A' || rowName == 'C' || rowName == 'E';
+            String tierTitle = 'STANDARD';
+            String tierPrice = isINR ? '₹180' : '\$14.00';
+            IconData tierIcon = Icons.event_seat_rounded;
+            Color tierAccent = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
 
-          return Column(
-            children: [
-              if (isTierStart)
+            if (rowName == 'A' || rowName == 'B') {
+              tierTitle = 'VIP RECLINERS';
+              tierPrice = isINR ? '₹350' : '\$24.00';
+              tierIcon = Icons.chair_rounded;
+              tierAccent = isDark ? AppTheme.goldAccent : const Color(0xFFD97706);
+            } else if (rowName == 'C' || rowName == 'D') {
+              tierTitle = 'PREMIUM CLUB';
+              tierPrice = isINR ? '₹250' : '\$18.00';
+              tierIcon = Icons.workspace_premium_rounded;
+              tierAccent = isDark ? AppTheme.cyanAccent : const Color(0xFF0284C7);
+            }
+
+            return Column(
+              children: [
+                if (isTierStart)
+                  _buildTierHeader(
+                    tierTitle: tierTitle,
+                    price: tierPrice,
+                    icon: tierIcon,
+                    accentColor: tierAccent,
+                    isDark: isDark,
+                  ),
                 Padding(
-                  padding: const EdgeInsets.only(top: 14, bottom: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Expanded(child: Divider(color: AppTheme.getSurfaceBorder(isDark))),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Text(
-                          tier.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 1.2,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.getTextMuted(isDark),
+                      // Row Letter Badge Left
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.black.withValues(alpha: 0.04),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : Colors.black.withValues(alpha: 0.08),
+                            width: 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            rowName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10.5,
+                              color: AppTheme.getTextMuted(isDark),
+                            ),
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: AppTheme.getSurfaceBorder(isDark))),
+                      const SizedBox(width: 6),
+
+                      // Left Seats (1-5)
+                      ...seats.take(5).map((seat) {
+                        return SeatWidget(
+                          seat: seat,
+                          onTap: () => _toggleSeat(seat),
+                        );
+                      }),
+
+                      // Central Aisle Indicator
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Container(
+                          width: 2,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : Colors.black.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ),
+
+                      // Right Seats (6-10)
+                      ...seats.skip(5).map((seat) {
+                        return SeatWidget(
+                          seat: seat,
+                          onTap: () => _toggleSeat(seat),
+                        );
+                      }),
+
+                      const SizedBox(width: 6),
+                      // Row Letter Badge Right
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : Colors.black.withValues(alpha: 0.04),
+                          border: Border.all(
+                            color: isDark
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : Colors.black.withValues(alpha: 0.08),
+                            width: 1,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            rowName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10.5,
+                              color: AppTheme.getTextMuted(isDark),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Row Name Left
-                    SizedBox(
-                      width: 24,
-                      child: Text(
-                        rowName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: AppTheme.getTextMuted(isDark),
-                        ),
-                      ),
-                    ),
-
-                    // Left Seats (1-5)
-                    ...seats.take(5).map((seat) {
-                      return SeatWidget(
-                        seat: seat,
-                        onTap: () => _toggleSeat(seat),
-                      );
-                    }),
-
-                    // Aisle Gap
-                    const SizedBox(width: 16),
-
-                    // Right Seats (6-10)
-                    ...seats.skip(5).map((seat) {
-                      return SeatWidget(
-                        seat: seat,
-                        onTap: () => _toggleSeat(seat),
-                      );
-                    }),
-
-                    // Row Name Right
-                    SizedBox(
-                      width: 24,
-                      child: Text(
-                        rowName,
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                          color: AppTheme.getTextMuted(isDark),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        }).toList(),
+              ],
+            );
+          }).toList(),
+        ),
       ),
     );
   }
