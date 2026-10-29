@@ -21,11 +21,51 @@ class _HomeScreenState extends State<HomeScreen> {
   List<City> _cities = [];
   City? _selectedCity;
   List<Movie> _movies = [];
+  Movie? _selectedMovie;
   bool _isLoading = true;
   String _selectedGenre = 'All';
   final TextEditingController _searchController = TextEditingController();
 
-  final List<String> _genres = ['All', 'Sci-Fi', 'Action', 'Biography', 'Animation'];
+  final List<String> _genres = ['All', 'Sci-Fi', 'Action', 'Biography'];
+
+  Widget _buildImageWidget(String url, {required bool isDark, BoxFit fit = BoxFit.cover, double logoSize = 50}) {
+    if (url.startsWith('assets/')) {
+      return Image.asset(
+        url,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: AppTheme.getSurfaceLight(isDark),
+          alignment: Alignment.center,
+          child: Opacity(
+            opacity: isDark ? 0.35 : 0.45,
+            child: Image.asset(
+              'assets/images/cineza_logo_transparent.png',
+              width: logoSize,
+              height: logoSize,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      );
+    }
+    return Image.network(
+      url,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => Container(
+        color: AppTheme.getSurfaceLight(isDark),
+        alignment: Alignment.center,
+        child: Opacity(
+          opacity: isDark ? 0.35 : 0.45,
+          child: Image.asset(
+            'assets/images/cineza_logo_transparent.png',
+            width: logoSize,
+            height: logoSize,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
+    );
+  }
 
   bool _isSyncingUser = false;
 
@@ -240,6 +280,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _cities = cities;
         _selectedCity = selected;
         _movies = movies;
+        if (_selectedMovie == null || !movies.any((m) => m.id == _selectedMovie?.id)) {
+          _selectedMovie = movies.isNotEmpty ? movies.first : null;
+        }
         _isLoading = false;
       });
     }
@@ -255,6 +298,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) {
       setState(() {
         _movies = movies;
+        if (!movies.any((m) => m.id == _selectedMovie?.id)) {
+          _selectedMovie = movies.isNotEmpty ? movies.first : null;
+        }
         _isLoading = false;
       });
     }
@@ -784,8 +830,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 16),
 
-                    // Featured Hero Banner
-                    if (_movies.isNotEmpty) _buildFeaturedHeroBanner(_movies.first, isDark, activePrimary),
+                    // Kollywood Hero Banner
+                    _buildKollywoodBanner(isDark),
 
                     const SizedBox(height: 28),
 
@@ -887,173 +933,40 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeaturedHeroBanner(Movie movie, bool isDark, Color activePrimary) {
+  Widget _buildKollywoodBanner(bool isDark) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
-      height: 220,
+      height: 230,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.15),
-            blurRadius: 15,
+            color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.15),
+            blurRadius: 18,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background Image with graceful fallback for network / CORS errors
-            Image.network(
-              movie.backdropUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isDark
-                        ? [const Color(0xFF1E2230), const Color(0xFF0F1117)]
-                        : [const Color(0xFFE2E8F0), const Color(0xFFCBD5E1)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-                alignment: Alignment.center,
-                child: Opacity(
-                  opacity: 0.15,
-                  child: Image.asset(
-                    'assets/images/cineza_logo_transparent.png',
-                    width: 100,
-                    height: 100,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+        child: Image.asset(
+          'assets/images/kollywood_banner.jpg',
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          alignment: const Alignment(0.0, 0.65),
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: AppTheme.getSurfaceLight(isDark),
+            alignment: Alignment.center,
+            child: Opacity(
+              opacity: 0.2,
+              child: Image.asset(
+                'assets/images/cineza_logo_transparent.png',
+                width: 100,
+                height: 100,
               ),
             ),
-
-            // Gradient Overlay and Content
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.95),
-                    Colors.black.withValues(alpha: 0.4),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.0, 0.65, 1.0],
-                ),
-              ),
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: activePrimary,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'FEATURED',
-                          style: TextStyle(
-                            color: isDark ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10,
-                            letterSpacing: 1.0,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.white24),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.star_rounded, size: 14, color: activePrimary),
-                            const SizedBox(width: 4),
-                            Text(
-                              movie.imdbScore.toString(),
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    movie.title,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      children: [
-                        Text(
-                          '${movie.genre} • ${movie.durationFormatted}',
-                          style: const TextStyle(color: Colors.white70, fontSize: 13),
-                        ),
-                        const SizedBox(width: 16),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(colors: [activePrimary, AppTheme.accent]),
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: activePrimary.withValues(alpha: 0.4),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/movie-details',
-                                arguments: {
-                                  'movie': movie,
-                                  'city': _selectedCity,
-                                },
-                              );
-                            },
-                            icon: const Icon(Icons.confirmation_num_rounded, size: 16, color: Colors.white),
-                            label: const Text('Book Tickets', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -1095,38 +1008,11 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
+                  _buildImageWidget(
                     movie.posterUrl,
+                    isDark: isDark,
                     fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        color: AppTheme.getSurfaceLight(isDark),
-                        alignment: Alignment.center,
-                        child: Opacity(
-                          opacity: isDark ? 0.35 : 0.45,
-                          child: Image.asset(
-                            'assets/images/cineza_logo_transparent.png',
-                            width: 50,
-                            height: 50,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      );
-                    },
-                    errorBuilder: (_, _, _) => Container(
-                      color: AppTheme.getSurfaceLight(isDark),
-                      alignment: Alignment.center,
-                      child: Opacity(
-                        opacity: isDark ? 0.35 : 0.45,
-                        child: Image.asset(
-                          'assets/images/cineza_logo_transparent.png',
-                          width: 50,
-                          height: 50,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
+                    logoSize: 50,
                   ),
                   Positioned(
                     top: 8,
@@ -1179,7 +1065,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     movie.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: AppTheme.argentHeading(
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                       color: AppTheme.getTextPrimary(isDark),

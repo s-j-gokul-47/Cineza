@@ -112,65 +112,65 @@ public class DataInitializer implements CommandLineRunner {
         }
         seatRepository.saveAll(screen2Seats);
 
-        // 5. Movies
-        Movie dune2 = movieRepository.save(new Movie(
-                "Dune: Part Two",
-                "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
-                "https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg",
-                "https://image.tmdb.org/t/p/original/xOMo8BRK7PfcJv9JCnx7s5200bm.jpg",
-                "Sci-Fi", "English", 166, "PG-13", new BigDecimal("8.6"), LocalDate.now().minusDays(30)
+        // 5. Movies (Recommended Sci-Fi, Action, and Biography titles)
+        Movie movie24 = movieRepository.save(new Movie(
+                "24",
+                "A sci-fi thriller about a genius watchmaker who invents a time-travel watch. When his vengeful twin brother Athreya resurfaces to claim it, a thrilling war across timelines begins.",
+                "assets/images/movie_24.jpg",
+                "assets/images/titlecard_24.png",
+                "Sci-Fi", "Tamil", 164, "UA", new BigDecimal("7.9"), LocalDate.now().minusDays(30)
         ));
 
-        Movie oppenheimer = movieRepository.save(new Movie(
-                "Oppenheimer",
-                "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb during WWII.",
-                "https://image.tmdb.org/t/p/w500/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
-                "https://image.tmdb.org/t/p/original/rM5Y09xC99JeNEiYxZY635xUvDC.jpg",
-                "Biography", "English", 180, "R", new BigDecimal("8.9"), LocalDate.now().minusDays(60)
+        Movie sooraraiPottru = movieRepository.save(new Movie(
+                "Soorarai Pottru",
+                "Nedumaaran Rajangam, a former air force captain, dreams of launching a low-cost airline so that every common person can fly, braving corrupt corporate aviation cartels.",
+                "assets/images/movie_soorarai_pottru.jpg",
+                "assets/images/titlecard_soorarai_pottru.jpg",
+                "Biography", "Tamil", 153, "U", new BigDecimal("8.7"), LocalDate.now().minusDays(60)
         ));
 
-        Movie interstellar = movieRepository.save(new Movie(
-                "Interstellar",
-                "When Earth becomes uninhabitable in the future, a farmer and ex-NASA pilot is tasked to pilot a spacecraft along with a team of researchers.",
-                "https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
-                "https://image.tmdb.org/t/p/original/xJHokMbljvjADYdit5fK5VQsXEG.jpg",
-                "Sci-Fi", "English", 169, "PG-13", new BigDecimal("8.7"), LocalDate.now().minusDays(365)
+        Movie maanaadu = movieRepository.save(new Movie(
+                "Maanaadu",
+                "Abdul Khaaliq and DCP Dhanushkodi find themselves stuck in a bizarre, relentless time loop on the day of a massive public conference where a political assassination is orchestrated.",
+                "assets/images/movie_maanaadu.jpg",
+                "assets/images/titlecard_maanaadu.png",
+                "Sci-Fi", "Tamil", 147, "UA", new BigDecimal("8.3"), LocalDate.now().minusDays(365)
         ));
 
-        Movie spiderVerse = movieRepository.save(new Movie(
-                "Spider-Man: Across the Spider-Verse",
-                "Miles Morales catapults across the Multiverse, where he encounters a team of Spider-People charged with protecting its very existence.",
-                "https://image.tmdb.org/t/p/w500/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg",
-                "https://image.tmdb.org/t/p/original/4HodYYKEIsGOdinkGi2Ucz6X9i0.jpg",
-                "Animation", "English", 140, "PG", new BigDecimal("8.7"), LocalDate.now().minusDays(120)
+        Movie kgf2 = movieRepository.save(new Movie(
+                "KGF: Chapter 2",
+                "Having captured the gold throne of Narachi, Rocky continues his quest for absolute power while clashing with the ferocious Adheera and prime minister Ramika Sen.",
+                "assets/images/movie_kgf2.jpg",
+                "assets/images/titlecard_kgf2.png",
+                "Action", "Kannada", 168, "UA", new BigDecimal("8.2"), LocalDate.now().minusDays(120)
         ));
 
-        Movie darkKnight = movieRepository.save(new Movie(
-                "The Dark Knight",
-                "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests.",
-                "https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
-                "https://image.tmdb.org/t/p/original/dqK9Hag1054tghRQSqLSfrkvQnA.jpg",
-                "Action", "English", 152, "PG-13", new BigDecimal("9.0"), LocalDate.now().minusDays(1000)
+        Movie vikram = movieRepository.save(new Movie(
+                "Vikram",
+                "A special operations black-ops commander unmasks a lethal syndicate cartel run by drug lord Sandhanam, sparking high-octane warfare across the underworld.",
+                "assets/images/movie_vikram.jpg",
+                "assets/images/movie_vikram.jpg",
+                "Action", "Tamil", 175, "UA", new BigDecimal("8.3"), LocalDate.now().minusDays(1000)
         ));
 
         // 6. Shows for Today and Tomorrow
         LocalDate today = LocalDate.now();
         List<Show> createdShows = new ArrayList<>();
 
-        // Dune 2 shows
-        Show show1 = showRepository.save(new Show(dune2, screen1, today.atTime(14, 30), today.atTime(17, 15), new BigDecimal("1.20")));
-        Show show2 = showRepository.save(new Show(dune2, screen1, today.atTime(18, 45), today.atTime(21, 30), new BigDecimal("1.30")));
-        Show show3 = showRepository.save(new Show(dune2, screen2, today.atTime(20, 0), today.atTime(22, 45), new BigDecimal("1.15")));
+        // 24 shows
+        Show show1 = showRepository.save(new Show(movie24, screen1, today.atTime(14, 30), today.atTime(17, 15), new BigDecimal("1.20")));
+        Show show2 = showRepository.save(new Show(movie24, screen1, today.atTime(18, 45), today.atTime(21, 30), new BigDecimal("1.30")));
+        Show show3 = showRepository.save(new Show(movie24, screen2, today.atTime(20, 0), today.atTime(22, 45), new BigDecimal("1.15")));
         createdShows.add(show1);
 
-        // Oppenheimer shows
-        showRepository.save(new Show(oppenheimer, screen2, today.atTime(15, 0), today.atTime(18, 0), new BigDecimal("1.25")));
-        showRepository.save(new Show(oppenheimer, screen1, today.plusDays(1).atTime(19, 0), today.plusDays(1).atTime(22, 0), new BigDecimal("1.30")));
+        // Soorarai Pottru shows
+        showRepository.save(new Show(sooraraiPottru, screen2, today.atTime(15, 0), today.atTime(18, 0), new BigDecimal("1.25")));
+        showRepository.save(new Show(sooraraiPottru, screen1, today.plusDays(1).atTime(19, 0), today.plusDays(1).atTime(22, 0), new BigDecimal("1.30")));
 
-        // Interstellar shows
-        showRepository.save(new Show(interstellar, screen1, today.atTime(22, 0), today.plusDays(1).atTime(0, 50), new BigDecimal("1.20")));
-        showRepository.save(new Show(spiderVerse, screen3, today.atTime(16, 30), today.atTime(18, 50), new BigDecimal("1.00")));
-        showRepository.save(new Show(darkKnight, screenLa, today.atTime(19, 30), today.atTime(22, 0), new BigDecimal("1.25")));
+        // Maanaadu, KGF 2, Vikram shows
+        showRepository.save(new Show(maanaadu, screen1, today.atTime(22, 0), today.plusDays(1).atTime(0, 50), new BigDecimal("1.20")));
+        showRepository.save(new Show(kgf2, screen3, today.atTime(16, 30), today.atTime(18, 50), new BigDecimal("1.00")));
+        showRepository.save(new Show(vikram, screenLa, today.atTime(19, 30), today.atTime(22, 0), new BigDecimal("1.25")));
 
         // 7. Seed an existing sample booking for Show 1 so some seats (e.g. C5, C6) show as BOOKED
         if (screen1Seats.size() >= 26) {

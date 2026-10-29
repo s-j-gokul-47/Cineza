@@ -16,13 +16,86 @@ class MovieDetailsScreen extends StatefulWidget {
 class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   final ApiService _apiService = ApiService();
 
-  late Movie _movie;
+  Movie? _movie;
   City? _city;
   List<ShowItem> _shows = [];
   bool _isLoading = true;
   int _selectedDateIndex = 0;
 
   late List<DateTime> _dates;
+
+  Widget _buildImageWidget(String url, {required bool isDark, BoxFit fit = BoxFit.cover, double? width, double? height, double logoSize = 40}) {
+    final errorWidget = Container(
+      width: width,
+      height: height,
+      color: AppTheme.getSurfaceLight(isDark),
+      alignment: Alignment.center,
+      child: Opacity(
+        opacity: isDark ? 0.25 : 0.35,
+        child: Image.asset(
+          'assets/images/cineza_logo_transparent.png',
+          width: logoSize,
+          height: logoSize,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+
+    if (url.startsWith('assets/')) {
+      return Image.asset(
+        url,
+        width: width,
+        height: height,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => errorWidget,
+      );
+    }
+    return Image.network(
+      url,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) => errorWidget,
+    );
+  }
+
+  static const Map<String, String> _customTitleCardMap = {
+    '24': 'assets/images/titlecard_24.png',
+    'soorarai pottru': 'assets/images/titlecard_soorarai_pottru.jpg',
+    'maanaadu': 'assets/images/titlecard_maanaadu.png',
+    'kgf': 'assets/images/titlecard_kgf2.png',
+    'k.g.f': 'assets/images/titlecard_kgf2.png',
+    'k.g.f.': 'assets/images/titlecard_kgf2.png',
+    'kgf 2': 'assets/images/titlecard_kgf2.png',
+    'kgf: chapter 2': 'assets/images/titlecard_kgf2.png',
+    'kgf chapter 2': 'assets/images/titlecard_kgf2.png',
+    'k.g.f 2': 'assets/images/titlecard_kgf2.png',
+    'k.g.f. 2': 'assets/images/titlecard_kgf2.png',
+    'k.g.f: chapter 2': 'assets/images/titlecard_kgf2.png',
+    'k.g.f. chapter 2': 'assets/images/titlecard_kgf2.png',
+    // Add additional movie title cards here as provided by user:
+    // 'vikram': 'assets/images/titlecard_vikram.png',
+  };
+
+  String _resolveBackdropUrl(Movie movie) {
+    final titleKey = movie.title.toLowerCase().trim();
+    if (_customTitleCardMap.containsKey(titleKey)) {
+      return _customTitleCardMap[titleKey]!;
+    }
+    if (titleKey.contains('kgf') || titleKey.contains('k.g.f')) {
+      return 'assets/images/titlecard_kgf2.png';
+    }
+    if (titleKey.contains('soorarai')) {
+      return 'assets/images/titlecard_soorarai_pottru.jpg';
+    }
+    if (titleKey.contains('maanaadu')) {
+      return 'assets/images/titlecard_maanaadu.png';
+    }
+    if (titleKey == '24' || titleKey.contains('24')) {
+      return 'assets/images/titlecard_24.png';
+    }
+    return movie.backdropUrl;
+  }
 
   @override
   void initState() {
@@ -45,21 +118,40 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    if (args != null) {
-      _movie = args['movie'] as Movie;
-      _city = args['city'] as City?;
+    if (_movie == null) {
+      final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+      if (args != null && args['movie'] is Movie) {
+        _movie = args['movie'] as Movie;
+        _city = args['city'] as City?;
+      } else {
+        // Fallback default movie if user navigated directly or refreshed on /movie-details
+        _movie = Movie(
+          id: 1,
+          title: '24',
+          synopsis: 'A sci-fi thriller about a genius watchmaker who invents a time-travel watch. When his vengeful twin brother Athreya resurfaces to claim it, a thrilling war across timelines begins.',
+          posterUrl: 'assets/images/movie_24.jpg',
+          backdropUrl: 'assets/images/titlecard_24.png',
+          genre: 'Sci-Fi',
+          language: 'Tamil',
+          durationMinutes: 164,
+          rating: 'UA',
+          imdbScore: 7.9,
+          releaseDate: '2016-05-06',
+        );
+      }
       _fetchShows();
     }
   }
 
   Future<void> _fetchShows() async {
+    final currentMovie = _movie;
+    if (currentMovie == null) return;
     setState(() => _isLoading = true);
     final selectedDate = _dates[_selectedDateIndex];
     final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
 
     final shows = await _apiService.getShows(
-      movieId: _movie.id,
+      movieId: currentMovie.id,
       cityId: _city?.id,
       date: dateStr,
     );
@@ -74,6 +166,12 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final movie = _movie;
+    if (movie == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: ThemeController.themeMode,
       builder: (context, currentMode, _) {
@@ -93,7 +191,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
         slivers: [
           // Collapsible Backdrop App Bar
           SliverAppBar(
-            expandedHeight: 280,
+            expandedHeight: 300,
             pinned: true,
             backgroundColor: AppTheme.getSurface(isDark),
             leading: IconButton(
@@ -143,22 +241,12 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    _movie.backdropUrl,
+                  Container(color: Colors.black),
+                  _buildImageWidget(
+                    _resolveBackdropUrl(movie),
+                    isDark: isDark,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Container(
-                      color: AppTheme.getSurfaceLight(isDark),
-                      alignment: Alignment.center,
-                      child: Opacity(
-                        opacity: isDark ? 0.25 : 0.35,
-                        child: Image.asset(
-                          'assets/images/cineza_logo_transparent.png',
-                          width: 80,
-                          height: 80,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
+                    logoSize: 80,
                   ),
                   Container(
                     decoration: BoxDecoration(
@@ -170,7 +258,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                           AppTheme.getBackground(isDark).withValues(alpha: isDark ? 0.6 : 0.75),
                           Colors.transparent,
                         ],
-                        stops: const [0.0, 0.55, 1.0],
+                        stops: const [0.0, 0.40, 1.0],
                       ),
                     ),
                   ),
@@ -192,26 +280,13 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          _movie.posterUrl,
+                        child: _buildImageWidget(
+                          movie.posterUrl,
+                          isDark: isDark,
                           width: 85,
                           height: 125,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            width: 85,
-                            height: 125,
-                            color: AppTheme.getSurfaceLight(isDark),
-                            alignment: Alignment.center,
-                            child: Opacity(
-                              opacity: isDark ? 0.35 : 0.45,
-                              child: Image.asset(
-                                'assets/images/cineza_logo_transparent.png',
-                                width: 36,
-                                height: 36,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                          ),
+                          logoSize: 36,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -220,8 +295,8 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              _movie.title,
-                              style: TextStyle(
+                              movie.title,
+                              style: AppTheme.argentHeading(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: -0.3,
@@ -234,7 +309,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                 Icon(Icons.star_rounded, size: 18, color: activePrimary),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '${_movie.imdbScore} / 10',
+                                  '${movie.imdbScore} / 10',
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -250,7 +325,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                     border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
                                   ),
                                   child: Text(
-                                    _movie.rating,
+                                    movie.rating,
                                     style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -262,7 +337,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '${_movie.genre} • ${_movie.durationFormatted} • ${_movie.language}',
+                              '${movie.genre} • ${movie.durationFormatted} • ${movie.language}',
                               style: TextStyle(
                                 color: AppTheme.getTextSecondary(isDark),
                                 fontSize: 13,
@@ -287,7 +362,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    _movie.synopsis,
+                    movie.synopsis,
                     style: TextStyle(
                       color: AppTheme.getTextSecondary(isDark),
                       fontSize: 14,
@@ -475,7 +550,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> {
                                       '/seat-selection',
                                       arguments: {
                                         'show': show,
-                                        'movie': _movie,
+                                        'movie': movie,
                                       },
                                     );
                                   },
