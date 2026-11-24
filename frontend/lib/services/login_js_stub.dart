@@ -17,4 +17,7 @@ bool get isMsg91Ready => false;
 void initMsg91() {}
 void playClapperSound() {}
 void clearWebSession() {}
+void saveWebUserSession(String userDataJson) {}
+String? loadWebUserSession() => null;
+
 

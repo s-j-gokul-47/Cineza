@@ -128,6 +128,52 @@ class AppTheme {
   static Color getSeatBooked(bool isDark) => isDark ? darkSeatBooked : lightSeatBooked;
 
   // ---------------------------------------------------------------------------
+  // CINEMATIC LUXURY GRADIENTS (Inspo MCP Media Archetypes)
+  // ---------------------------------------------------------------------------
+  static const LinearGradient cobaltActionGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF18A0FB), Color(0xFF0062FF)],
+  );
+
+  static const LinearGradient amberGoldGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFFB800), Color(0xFFF59E0B)],
+  );
+
+  static const LinearGradient cyanNeonGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF38BDF8), Color(0xFF00F2FF)],
+  );
+
+  static const LinearGradient rubyPremiereGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFEF4444), Color(0xFF991B1B)],
+  );
+
+  static LinearGradient getMarqueeGradient(bool isDark) {
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: isDark
+          ? [
+              Colors.transparent,
+              const Color(0xFF0F1117).withValues(alpha: 0.55),
+              const Color(0xFF0F1117).withValues(alpha: 0.95),
+            ]
+          : [
+              Colors.transparent,
+              const Color(0xFFF8FAFC).withValues(alpha: 0.60),
+              const Color(0xFFF8FAFC).withValues(alpha: 0.96),
+            ],
+      stops: const [0.0, 0.40, 1.0],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // GOOGLE STITCH TYPOGRAPHY (Argent CF for Headings & Proxima Nova for Body / UI)
   // ---------------------------------------------------------------------------
   static TextStyle argentHeading({

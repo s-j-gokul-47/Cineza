@@ -44,14 +44,26 @@ Thumbs.db
 *.log
 
 # Credentials & Secrets
+.env
+.env.*
+*.env
 frontend/android/app/google-services.json
 frontend/ios/Runner/GoogleService-Info.plist
 frontend/lib/firebase_options.dart
 frontend/.firebaserc
 frontend/firebase.json
 frontend/web/msg91_config.js
+application-secret.properties
+application-secret.yml
 *.key
 *.pem
+*.keystore
+*.jks
+
+# Agent & Scratch Tooling
+.agents/
+scratch/
+components.json
 
 # Documentation & Chat History
 CHAT_HISTORY.md

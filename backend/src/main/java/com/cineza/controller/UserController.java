@@ -40,13 +40,32 @@ public class UserController {
     }
 
     /**
-     * Get user profile by Phone Number
+     * Get user profile by Phone Number (handles normalized formats)
      */
     @GetMapping("/by-phone")
     public ResponseEntity<UserResponse> getUserByPhone(@RequestParam String phone) {
         return userService.findByPhoneNumber(phone)
                 .map(user -> ResponseEntity.ok(new UserResponse(user)))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Get user profile by Username
+     */
+    @GetMapping("/by-username")
+    public ResponseEntity<UserResponse> getUserByUsername(@RequestParam String username) {
+        return userService.findByUsername(username)
+                .map(user -> ResponseEntity.ok(new UserResponse(user)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * Check if a username is already taken
+     */
+    @GetMapping("/check-username")
+    public ResponseEntity<Map<String, Boolean>> checkUsername(@RequestParam String username) {
+        boolean exists = userService.existsByUsername(username);
+        return ResponseEntity.ok(Map.of("exists", exists));
     }
 
     /**

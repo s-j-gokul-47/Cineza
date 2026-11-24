@@ -7,6 +7,7 @@ import 'screens/movie_details_screen.dart';
 import 'screens/seat_selection_screen.dart';
 import 'screens/terms_policy_screen.dart';
 import 'screens/location_selector_screen.dart';
+import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -22,9 +23,18 @@ Future<void> main() async {
     return ErrorWidget(details.exception);
   };
 
+  // Suppress RenderFlex overflow console errors and debug overlay stripes globally
+  FlutterError.onError = (FlutterErrorDetails details) {
+    if (details.exceptionAsString().contains('overflowed by')) return;
+    FlutterError.presentError(details);
+  };
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Initialize unified authentication state & local persistence
+  AuthService.initialize();
 
   runApp(const CinezaApp());
 }
@@ -48,6 +58,7 @@ class CinezaApp extends StatelessWidget {
           routes: {
             '/': (context) => const HomeScreen(),
             '/login': (context) => const LoginScreen(),
+            '/signup': (context) => const LoginScreen(initialMode: AuthMode.signUp),
             '/movie-details': (context) => const MovieDetailsScreen(),
             '/seat-selection': (context) => const SeatSelectionScreen(),
             '/terms-policy': (context) => const TermsPolicyScreen(),

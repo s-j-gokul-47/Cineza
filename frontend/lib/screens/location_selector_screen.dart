@@ -1356,7 +1356,7 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
                 crossAxisCount: cols,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
-                childAspectRatio: 2.1,
+                mainAxisExtent: 84,
               ),
               itemBuilder: (context, index) {
                 final country = filtered[index];
@@ -1366,7 +1366,7 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
                   onTap: () => _selectCountry(country.name, country.flag),
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: isSelected ? kSurfaceHigh : kSurface,
                       borderRadius: BorderRadius.circular(12),
@@ -1376,34 +1376,40 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
                       ),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(country.flag, style: const TextStyle(fontSize: 26)),
-                        const SizedBox(width: 10),
+                        Text(country.flag, style: const TextStyle(fontSize: 20)),
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                country.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: _argentHeading(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: kTextWhite,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  country.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _argentHeading(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: kTextWhite,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                country.subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: _proximaBody(
-                                  fontSize: 10.5,
-                                  color: isSelected ? kSecondary : kTextMuted,
+                                Text(
+                                  country.subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: _proximaBody(
+                                    fontSize: 10.5,
+                                    color: isSelected ? kSecondary : kTextMuted,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                         if (isSelected)
@@ -1468,7 +1474,7 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
                 crossAxisCount: cols,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 2.5,
+                mainAxisExtent: 64,
               ),
               itemBuilder: (context, index) {
                 final stateData = filtered[index];
@@ -1478,7 +1484,7 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
                   onTap: () => _selectState(stateData.name),
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected ? kSurfaceHigh : kSurface,
                       borderRadius: BorderRadius.circular(10),
@@ -1592,7 +1598,7 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
                   crossAxisCount: cols,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: 1.55,
+                  mainAxisExtent: 134,
                 ),
                 itemBuilder: (context, index) {
                   final city = filtered[index];
@@ -2011,18 +2017,17 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen>
           ],
         ),
 
-        Row(
-          mainAxisSize: MainAxisSize.min,
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (extraAction != null) ...[
-              extraAction,
-              const SizedBox(width: 10),
-            ],
+            if (extraAction != null) extraAction,
 
             // Search Input with Clear Button
             Container(
-              width: 200,
-              height: 38,
+              width: 190,
+              constraints: const BoxConstraints(minHeight: 38),
               decoration: BoxDecoration(
                 color: kSurface,
                 borderRadius: BorderRadius.circular(8),

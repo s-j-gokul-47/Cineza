@@ -80,7 +80,58 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public Optional<User> findByPhoneNumber(String phoneNumber) {
-        return userRepository.findByPhoneNumber(phoneNumber);
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            return Optional.empty();
+        }
+        String cleaned = phoneNumber.trim();
+
+        // 1. Exact match
+        Optional<User> user = userRepository.findByPhoneNumber(cleaned);
+        if (user.isPresent()) {
+            return user;
+        }
+
+        // 2. Normalized check across international (+91), national (91), and 10-digit formats
+        String digits = cleaned.replaceAll("[^0-9]", "");
+        if (digits.length() >= 10) {
+            String last10 = digits.substring(digits.length() - 10);
+
+            // Check +91 prefix
+            user = userRepository.findByPhoneNumber("+91" + last10);
+            if (user.isPresent()) return user;
+
+            // Check 91 prefix
+            user = userRepository.findByPhoneNumber("91" + last10);
+            if (user.isPresent()) return user;
+
+            // Check raw 10 digits
+            user = userRepository.findByPhoneNumber(last10);
+            if (user.isPresent()) return user;
+        }
+
+        return Optional.empty();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<User> findByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return Optional.empty();
+        }
+        String clean = username.trim();
+        Optional<User> user = userRepository.findByUsernameIgnoreCase(clean);
+        if (user.isPresent()) {
+            return user;
+        }
+        return userRepository.findByUsername(clean);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existsByUsername(String username) {
+        if (username == null || username.isBlank()) {
+            return false;
+        }
+        String clean = username.trim();
+        return userRepository.existsByUsernameIgnoreCase(clean) || userRepository.existsByUsername(clean);
     }
 
     @Transactional

@@ -307,126 +307,148 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
-              // Pointer Prompt when location is not fixed
-              if (_city == null) ...[
-                AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, _) => Transform.translate(
-                    offset: Offset(_pulseAnimation.value, 0),
-                    child: GestureDetector(
-                      onTap: _openLocationSelector,
-                      child: Center(
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: isDark
-                                  ? [const Color(0xFF18A0FB), const Color(0xFF0062FF)]
-                                  : [const Color(0xFF0062FF), const Color(0xFF2563EB)],
-                            ),
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: activePrimary.withValues(alpha: 0.5),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Choose a location',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w900,
-                                  color: isDark ? Colors.black : Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 14,
-                                color: isDark ? Colors.black : Colors.white,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              // All actions strictly constrained and scrollable to prevent RenderFlex overflow at any zoom level
+              Builder(
+                builder: (context) {
+                  final sw = MediaQuery.of(context).size.width;
+                  // On zoom or screens < 720, hide the redundant prompt to give plenty of breathing room
+                  final isCompactZoom = sw < 720;
+                  // Available width for actions is strictly bounded by screen width minus back button (56) and margins
+                  final maxActionWidth = (sw - 68).clamp(80.0, sw);
 
-              // Location Selector Pill
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _city == null ? activePrimary : activePrimary.withValues(alpha: 0.35),
-                      width: _city == null ? 1.8 : 1.0,
-                    ),
-                    boxShadow: _city == null
-                        ? [
-                            BoxShadow(
-                              color: activePrimary.withValues(alpha: 0.4),
-                              blurRadius: 8,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: InkWell(
-                    onTap: _openLocationSelector,
-                    borderRadius: BorderRadius.circular(20),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  return Container(
+                    alignment: Alignment.centerRight,
+                    constraints: BoxConstraints(maxWidth: maxActionWidth),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true,
+                      physics: const BouncingScrollPhysics(),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.location_on_rounded, color: activePrimary, size: 15),
-                          const SizedBox(width: 4),
-                          Text(
-                            _city?.name ?? 'LOCATION',
-                            style: TextStyle(
-                              color: _city != null ? AppTheme.getTextPrimary(isDark) : activePrimary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                          // Pointer Prompt when location is not fixed (only on roomy desktop view)
+                          if (_city == null && !isCompactZoom)
+                            AnimatedBuilder(
+                              animation: _pulseAnimation,
+                              builder: (context, _) => Transform.translate(
+                                offset: Offset(_pulseAnimation.value, 0),
+                                child: GestureDetector(
+                                  onTap: _openLocationSelector,
+                                  child: Container(
+                                    margin: const EdgeInsets.only(right: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isDark
+                                            ? [const Color(0xFF18A0FB), const Color(0xFF0062FF)]
+                                            : [const Color(0xFF0062FF), const Color(0xFF2563EB)],
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: activePrimary.withValues(alpha: 0.5),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Choose a location',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w900,
+                                            color: isDark ? Colors.black : Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          Icons.arrow_forward_rounded,
+                                          size: 14,
+                                          color: isDark ? Colors.black : Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          // Location Selector Pill
+                          GestureDetector(
+                            onTap: _openLocationSelector,
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 6),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: sw < 400 ? 8 : 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _city == null ? activePrimary : activePrimary.withValues(alpha: 0.35),
+                                  width: _city == null ? 1.8 : 1.0,
+                                ),
+                                boxShadow: _city == null
+                                    ? [
+                                        BoxShadow(
+                                          color: activePrimary.withValues(alpha: 0.4),
+                                          blurRadius: 8,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.location_on_rounded, color: activePrimary, size: 15),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _city?.name ?? 'LOCATION',
+                                    style: TextStyle(
+                                      color: _city != null ? AppTheme.getTextPrimary(isDark) : activePrimary,
+                                      fontSize: sw < 400 ? 11 : 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Icon(
+                                    Icons.arrow_drop_down_rounded,
+                                    color: AppTheme.getTextMuted(isDark),
+                                    size: 18,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            Icons.arrow_drop_down_rounded,
-                            color: AppTheme.getTextMuted(isDark),
-                            size: 18,
+
+                          // Theme toggle
+                          Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            decoration: BoxDecoration(
+                              color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
+                              shape: BoxShape.circle,
+                            ),
+                            child: IconButton(
+                              icon: Icon(
+                                isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                                color: activePrimary,
+                                size: 18,
+                              ),
+                              tooltip: isDark ? 'Switch to Bright Mode' : 'Switch to Dark Mode',
+                              onPressed: () {
+                                ThemeController.toggleTheme();
+                              },
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-              ),
-              Container(
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.black54 : Colors.white.withValues(alpha: 0.85),
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: Icon(
-                    isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                    color: activePrimary,
-                    size: 20,
-                  ),
-                  tooltip: isDark ? 'Switch to Bright Mode' : 'Switch to Dark Mode',
-                  onPressed: () {
-                    ThemeController.toggleTheme();
-                  },
-                ),
+                  );
+                },
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -484,10 +506,10 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: _buildImageWidget(
-                            movie.posterUrl,
+                            movie.resolvedPosterUrl,
                             isDark: isDark,
-                            width: 85,
-                            height: 125,
+                            width: 90,
+                            height: 135,
                             fit: BoxFit.cover,
                             logoSize: 36,
                           ),
@@ -511,25 +533,39 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                                 color: AppTheme.getTextPrimary(isDark),
                               ),
                             ),
-                            const SizedBox(height: 6),
-                            Row(
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
-                                Icon(Icons.star_rounded, size: 18, color: activePrimary),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${movie.imdbScore} / 10',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: AppTheme.getTextPrimary(isDark),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF59E0B),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star_rounded, size: 14, color: Colors.black),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        '${movie.imdbScore.toStringAsFixed(1)} / 10',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 12,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(width: 12),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: AppTheme.getSurfaceLight(isDark),
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(6),
                                     border: Border.all(color: AppTheme.getSurfaceBorder(isDark)),
                                   ),
                                   child: Text(
@@ -541,6 +577,23 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                                     ),
                                   ),
                                 ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF0284C7), Color(0xFF0062FF)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'IMAX 3D',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 8),
@@ -549,6 +602,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                               style: TextStyle(
                                 color: AppTheme.getTextSecondary(isDark),
                                 fontSize: 13,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
@@ -594,7 +648,7 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                   const SizedBox(height: 12),
 
                   SizedBox(
-                    height: 70,
+                    height: 74,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _dates.length,
@@ -602,6 +656,10 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                       itemBuilder: (context, index) {
                         final date = _dates[index];
                         final isSelected = index == _selectedDateIndex;
+                        final isToday = index == 0;
+                        final dayName = isToday ? 'TODAY' : DateFormat('EEE').format(date).toUpperCase();
+                        final monthName = DateFormat('MMM').format(date).toUpperCase();
+
                         return GestureDetector(
                           onTap: () {
                             if (_city == null) {
@@ -613,36 +671,58 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            width: 60,
+                            width: 66,
                             decoration: BoxDecoration(
                               color: isSelected ? activePrimary : AppTheme.getSurfaceLight(isDark),
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isSelected ? activePrimary : AppTheme.getSurfaceBorder(isDark),
+                                width: isSelected ? 1.5 : 1.0,
                               ),
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: activePrimary.withValues(alpha: 0.4),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
                             ),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  DateFormat('EEE').format(date).toUpperCase(),
+                                  dayName,
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.5,
                                     color: isSelected
                                         ? (isDark ? Colors.black87 : Colors.white)
                                         : AppTheme.getTextMuted(isDark),
                                   ),
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 3),
                                 Text(
                                   DateFormat('d').format(date),
                                   style: TextStyle(
                                     fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w900,
                                     color: isSelected
                                         ? (isDark ? Colors.black : Colors.white)
                                         : AppTheme.getTextPrimary(isDark),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  monthName,
+                                  style: TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected
+                                        ? (isDark ? Colors.black54 : Colors.white70)
+                                        : AppTheme.getTextMuted(isDark),
                                   ),
                                 ),
                               ],
@@ -855,7 +935,19 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
+                            // Theatre Amenities Strip
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                _buildAmenityChip(Icons.verified_rounded, '100% Refundable', const Color(0xFF10B981), isDark),
+                                _buildAmenityChip(Icons.surround_sound_rounded, 'Dolby Atmos 7.1', activePrimary, isDark),
+                                _buildAmenityChip(Icons.fastfood_rounded, 'F&B to Seat', const Color(0xFFF59E0B), isDark),
+                                _buildAmenityChip(Icons.wheelchair_pickup_rounded, 'Wheelchair Access', const Color(0xFF94A3B8), isDark),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
                             Divider(color: AppTheme.getSurfaceBorder(isDark), height: 1),
                             const SizedBox(height: 14),
 
@@ -1002,13 +1094,15 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
       child: Center(
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Icon(Icons.arrow_upward_rounded, size: 18, color: activePrimary),
                 const SizedBox(width: 6),
                 Text(
                   'Choose a location using the location symbol above',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
@@ -1067,6 +1161,32 @@ class _MovieDetailsScreenState extends State<MovieDetailsScreen> with SingleTick
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildAmenityChip(IconData icon, String label, Color color, bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.12 : 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25), width: 0.8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+        ],
       ),
     );
   }

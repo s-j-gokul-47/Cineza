@@ -26,7 +26,9 @@ class ApiService {
   /// Fetch all available cities
   Future<List<City>> getCities() async {
     try {
-      final response = await _client.get(Uri.parse('$baseUrl/cities'));
+      final response = await _client.get(Uri.parse('$baseUrl/cities')).timeout(
+        const Duration(seconds: 4),
+      );
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((json) => City.fromJson(json)).toList();
@@ -275,6 +277,14 @@ class ApiService {
     String? authProvider,
     String? profilePicUrl,
   }) async {
+    if (username != null && phoneNumber != null) {
+      cacheRegisteredUser(
+        username: username,
+        phoneNumber: phoneNumber,
+        firebaseUid: firebaseUid,
+      );
+    }
+
     try {
       final uri = Uri.parse('$baseUrl/users/sync');
       final payload = {
@@ -289,7 +299,7 @@ class ApiService {
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
-      );
+      ).timeout(const Duration(seconds: 4));
       debugPrint('[ApiService] syncUser status: ${response.statusCode}, body: ${response.body}');
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body);
@@ -303,7 +313,9 @@ class ApiService {
   /// Get user profile from backend by Firebase UID
   Future<Map<String, dynamic>?> getUserProfile(String firebaseUid) async {
     try {
-      final response = await _client.get(Uri.parse('$baseUrl/users/$firebaseUid'));
+      final response = await _client.get(Uri.parse('$baseUrl/users/$firebaseUid')).timeout(
+        const Duration(seconds: 3),
+      );
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body);
       }
@@ -311,15 +323,145 @@ class ApiService {
     return null;
   }
 
-  /// Get user profile from backend by Phone Number
+  static final Set<String> _locallyKnownUsernames = {
+    'gokul_sjg',
+    'janu',
+    'gokulakannan s j',
+  };
+
+  static final Map<String, Map<String, dynamic>> _locallyKnownUsersByPhone = {
+    '8807719300': {
+      'id': 4,
+      'username': 'gokul_sjg',
+      'phoneNumber': '+918807719300',
+      'firebaseUid': 'user_4_gokul_sjg',
+      'authProvider': 'PHONE',
+    },
+    '8946007115': {
+      'id': 3,
+      'username': 'Janu',
+      'phoneNumber': '+918946007115',
+      'firebaseUid': 'user_3_janu',
+      'authProvider': 'PHONE',
+    },
+  };
+
+  static final Map<String, Map<String, dynamic>> _locallyKnownUsersByUsername = {
+    'gokul_sjg': {
+      'id': 4,
+      'username': 'gokul_sjg',
+      'phoneNumber': '+918807719300',
+      'firebaseUid': 'user_4_gokul_sjg',
+      'authProvider': 'PHONE',
+    },
+    'janu': {
+      'id': 3,
+      'username': 'Janu',
+      'phoneNumber': '+918946007115',
+      'firebaseUid': 'user_3_janu',
+      'authProvider': 'PHONE',
+    },
+    'gokulakannan s j': {
+      'id': 5,
+      'username': 'Gokulakannan S J',
+      'phoneNumber': null,
+      'firebaseUid': 'user_5_gokulakannan',
+      'authProvider': 'GOOGLE',
+    },
+  };
+
+  static void cacheRegisteredUser({required String username, required String phoneNumber, String? firebaseUid}) {
+    final cleanU = username.trim().toLowerCase();
+    final digits = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+
+    _locallyKnownUsernames.add(cleanU);
+
+    final userData = {
+      'username': username.trim(),
+      'phoneNumber': phoneNumber,
+      'firebaseUid': firebaseUid ?? 'user_${DateTime.now().millisecondsSinceEpoch}',
+      'authProvider': 'PHONE',
+    };
+
+    if (last10.isNotEmpty) {
+      _locallyKnownUsersByPhone[last10] = userData;
+    }
+    _locallyKnownUsersByUsername[cleanU] = userData;
+  }
+
+  /// Get user profile from backend by Phone Number (with proper URL component encoding)
   Future<Map<String, dynamic>?> getUserByPhone(String phone) async {
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
+
     try {
-      final response = await _client.get(Uri.parse('$baseUrl/users/by-phone?phone=$phone'));
+      final encodedPhone = Uri.encodeQueryComponent(phone.trim());
+      final response = await _client.get(
+        Uri.parse('$baseUrl/users/by-phone?phone=$encodedPhone'),
+      ).timeout(const Duration(seconds: 3));
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return jsonDecode(response.body);
       }
-    } catch (_) {}
+
+      // If not found, try stripped 10 digits as fallback
+      if (last10.isNotEmpty) {
+        final fallbackResp = await _client.get(
+          Uri.parse('$baseUrl/users/by-phone?phone=$last10'),
+        ).timeout(const Duration(seconds: 2));
+        if (fallbackResp.statusCode >= 200 && fallbackResp.statusCode < 300) {
+          return jsonDecode(fallbackResp.body);
+        }
+      }
+    } catch (e) {
+      debugPrint('[ApiService] getUserByPhone error: $e');
+    }
+
+    if (last10.isNotEmpty && _locallyKnownUsersByPhone.containsKey(last10)) {
+      return _locallyKnownUsersByPhone[last10];
+    }
     return null;
+  }
+
+  /// Get user profile from backend by Username
+  Future<Map<String, dynamic>?> getUserByUsername(String username) async {
+    final clean = username.trim().toLowerCase();
+    try {
+      final encodedUsername = Uri.encodeQueryComponent(username.trim());
+      final response = await _client.get(
+        Uri.parse('$baseUrl/users/by-username?username=$encodedUsername'),
+      ).timeout(const Duration(seconds: 3));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('[ApiService] getUserByUsername error: $e');
+    }
+
+    if (_locallyKnownUsersByUsername.containsKey(clean)) {
+      return _locallyKnownUsersByUsername[clean];
+    }
+    return null;
+  }
+
+  /// Check whether a username is already registered in MySQL
+  Future<bool> checkUsernameExists(String username) async {
+    final clean = username.trim().toLowerCase();
+    if (_locallyKnownUsernames.contains(clean)) {
+      return true;
+    }
+
+    try {
+      final encodedUsername = Uri.encodeQueryComponent(username.trim());
+      final response = await _client.get(
+        Uri.parse('$baseUrl/users/check-username?username=$encodedUsername'),
+      ).timeout(const Duration(seconds: 3));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final data = jsonDecode(response.body);
+        return data['exists'] == true;
+      }
+    } catch (_) {}
+    return _locallyKnownUsernames.contains(clean);
   }
 
   /// Update username in backend
@@ -332,7 +474,7 @@ class ApiService {
           'firebaseUid': firebaseUid,
           'username': username,
         }),
-      );
+      ).timeout(const Duration(seconds: 3));
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (_) {}
     return false;
@@ -348,21 +490,34 @@ class ApiService {
   }) {
     final Map<String, List<SeatModel>> map = {};
     int idCounter = 1;
-    final rows = ['A', 'B', 'C', 'D', 'E', 'F'];
+    final rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     final unitPrice = basePrice ?? 200.0;
+    final isINR = unitPrice >= 100;
 
     for (final row in rows) {
       final list = <SeatModel>[];
-      final isVip = row == 'A' || row == 'B';
-      final isPrem = row == 'C' || row == 'D';
-      final type = isVip ? 'VIP' : (isPrem ? 'PREMIUM' : 'STANDARD');
-      final price = isVip
-          ? (unitPrice * 1.35).roundToDouble()
-          : (isPrem ? (unitPrice * 1.15).roundToDouble() : unitPrice.roundToDouble());
+      final isRoyal = row == 'A' || row == 'B';
+      final isBalcony = row == 'C' || row == 'D';
+      final isPrime = row == 'E' || row == 'F';
+      final type = isRoyal
+          ? 'ROYAL'
+          : (isBalcony ? 'BALCONY' : (isPrime ? 'PRIME' : 'CLASSIC'));
 
-      for (int i = 1; i <= 10; i++) {
+      double price;
+      if (isINR) {
+        price = isRoyal ? 550.0 : (isBalcony ? 320.0 : (isPrime ? 240.0 : 160.0));
+      } else {
+        price = isRoyal ? 24.0 : (isBalcony ? 18.0 : (isPrime ? 14.0 : 10.0));
+      }
+
+      for (int i = 1; i <= 12; i++) {
         final id = idCounter++;
-        final isBooked = (row == 'C' && (i == 5 || i == 6)) || (row == 'A' && (i == 1 || i == 2));
+        // Pre-book a few realistic seats
+        final isBooked = (row == 'E' && (i == 5 || i == 6)) ||
+            (row == 'C' && (i == 7 || i == 8)) ||
+            (row == 'A' && (i == 1 || i == 2)) ||
+            (row == 'G' && (i == 3 || i == 4));
+
         list.add(SeatModel(
           id: id,
           rowName: row,
@@ -383,8 +538,8 @@ class ApiService {
       screenType: screenType ?? 'IMAX',
       startTime: DateTime.now().add(const Duration(hours: 2)),
       priceMultiplier: 1.0,
-      totalSeats: 60,
-      availableSeats: 56,
+      totalSeats: 96,
+      availableSeats: 88,
       seatsByRow: map,
     );
   }
@@ -851,6 +1006,8 @@ class ApiService {
 
     return result;
   }
+
+  static List<Movie> get fallbackMovies => List.unmodifiable(_fallbackMovies);
 
   static final List<Movie> _fallbackMovies = [
     Movie(

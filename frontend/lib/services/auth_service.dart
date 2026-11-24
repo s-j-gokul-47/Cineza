@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import '../models/user.dart';
 import 'api_service.dart';
 import 'location_service.dart';
 import 'login_js_helper.dart';
@@ -13,6 +14,72 @@ class AuthService {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ApiService _apiService = ApiService();
+
+  /// Reactive notifier holding the currently authenticated Cineza user across Firebase, Phone OTP, and MySQL
+    static final ValueNotifier<CinezaUser?> currentUserNotifier =
+      ValueNotifier<CinezaUser?>(null);
+
+  /// Synchronous getter for active CinezaUser
+  static CinezaUser? get currentUser => currentUserNotifier.value;
+
+  /// Check whether an authenticated session is active
+  static bool get isLoggedIn => currentUserNotifier.value != null;
+
+  /// Underlying Firebase user instance (if authenticated via Firebase)
+  User? get firebaseUser => _auth.currentUser;
+
+  /// Backwards-compatible getter for Firebase User
+  User? get currentUserInstance => _auth.currentUser;
+
+  /// Initialize and hydrate auth state on app startup
+  static void initialize() {
+    // 1. Try loading cached session from Web localStorage
+    try {
+      final cachedJson = loadWebUserSession();
+      if (cachedJson != null && cachedJson.trim().isNotEmpty) {
+        final Map<String, dynamic> map = jsonDecode(cachedJson);
+        if (map['uid'] != null && map['uid'].toString().isNotEmpty) {
+          currentUserNotifier.value = CinezaUser.fromJson(map);
+        }
+      }
+    } catch (_) {}
+
+    // 2. If Firebase already has an active user, prioritize or sync it
+    final fbUser = FirebaseAuth.instance.currentUser;
+    if (fbUser != null) {
+      currentUserNotifier.value = CinezaUser.fromFirebaseUser(fbUser);
+      try {
+        saveWebUserSession(jsonEncode(currentUserNotifier.value!.toJson()));
+      } catch (_) {}
+    }
+
+    // 3. Listen to Firebase auth state changes
+    FirebaseAuth.instance.authStateChanges().listen((fbUser) {
+      if (fbUser != null) {
+        currentUserNotifier.value = CinezaUser.fromFirebaseUser(fbUser);
+        try {
+          saveWebUserSession(jsonEncode(currentUserNotifier.value!.toJson()));
+        } catch (_) {}
+      } else {
+        // If Firebase user signed out, check if current was a Firebase-driven provider (GOOGLE, EMAIL)
+        if (currentUserNotifier.value != null &&
+            currentUserNotifier.value!.authProvider != 'PHONE') {
+          currentUserNotifier.value = null;
+          try {
+            saveWebUserSession('');
+          } catch (_) {}
+        }
+      }
+    });
+  }
+
+  /// Explicitly store or update session user (used by phone verification & username setup)
+  static void setSessionUser(CinezaUser user) {
+    currentUserNotifier.value = user;
+    try {
+      saveWebUserSession(jsonEncode(user.toJson()));
+    } catch (_) {}
+  }
 
   Future<UserCredential> signInWithGoogle() async {
     final UserCredential credential;
@@ -58,7 +125,7 @@ class AuthService {
         resolvedName = user.email!.split('@').first;
       }
       if (resolvedName.isEmpty) {
-        resolvedName = 'Cineza User';
+        resolvedName = 'Cineza Member';
       }
 
       try {
@@ -77,81 +144,149 @@ class AuthService {
           profilePicUrl: user.photoURL,
         );
       } catch (_) {}
+
+      final cinezaUser = CinezaUser.fromFirebaseUser(user, overrideDisplayName: resolvedName);
+      setSessionUser(cinezaUser);
     }
 
     return credential;
   }
 
-  /// Automatically resolves and synchronizes user profile between Firebase and MySQL
-  Future<String> resolveAndSyncUser(User user) async {
+  /// Automatically resolves and synchronizes user profile between Firebase, MySQL, and session
+  Future<String> resolveAndSyncUser(dynamic user) async {
+    String uid = '';
+    String? currentDisplayName;
+    String? email;
+    String? phoneNumber;
+    String? photoUrl;
+    User? fbUser;
+
+    if (user is User) {
+      fbUser = user;
+      uid = user.uid;
+      currentDisplayName = user.displayName;
+      email = user.email;
+      phoneNumber = user.phoneNumber;
+      photoUrl = user.photoURL;
+    } else if (user is CinezaUser) {
+      uid = user.uid;
+      currentDisplayName = user.displayName;
+      email = user.email;
+      phoneNumber = user.phoneNumber;
+      photoUrl = user.photoURL;
+      fbUser = _auth.currentUser;
+    }
+
     String resolvedName = '';
-    if (user.displayName != null && user.displayName!.trim().isNotEmpty) {
-      resolvedName = user.displayName!.trim();
+    if (currentDisplayName != null &&
+        currentDisplayName.trim().isNotEmpty &&
+        currentDisplayName != 'Cineza User' &&
+        currentDisplayName != 'Cineza Member') {
+      resolvedName = currentDisplayName.trim();
     }
 
-    if (resolvedName.isEmpty && user.providerData.isNotEmpty) {
-      for (final info in user.providerData) {
-        if (info.displayName != null && info.displayName!.trim().isNotEmpty) {
-          resolvedName = info.displayName!.trim();
-          break;
-        }
-      }
-    }
-
-    // Check backend MySQL database
-    if (resolvedName.isEmpty) {
+    // Check MySQL database
+    if (resolvedName.isEmpty && uid.isNotEmpty) {
       try {
-        final dbUser = await _apiService.getUserProfile(user.uid);
-        if (dbUser != null && dbUser['username'] != null && dbUser['username'].toString().trim().isNotEmpty) {
+        final dbUser = await _apiService.getUserProfile(uid);
+        if (dbUser != null &&
+            dbUser['username'] != null &&
+            dbUser['username'].toString().trim().isNotEmpty) {
           resolvedName = dbUser['username'].toString().trim();
         }
       } catch (_) {}
     }
 
-    if (resolvedName.isEmpty && user.email != null && user.email!.isNotEmpty) {
-      resolvedName = user.email!.split('@').first;
+    // Fallback to phone lookup in MySQL if phone number is present
+    if (resolvedName.isEmpty && phoneNumber != null && phoneNumber.isNotEmpty) {
+      try {
+        final dbUser = await _apiService.getUserByPhone(phoneNumber);
+        if (dbUser != null &&
+            dbUser['username'] != null &&
+            dbUser['username'].toString().trim().isNotEmpty) {
+          resolvedName = dbUser['username'].toString().trim();
+        }
+      } catch (_) {}
     }
 
-    if (resolvedName.isNotEmpty && user.displayName != resolvedName) {
+    if (resolvedName.isEmpty && email != null && email.isNotEmpty) {
+      resolvedName = email.split('@').first;
+    }
+
+    if (resolvedName.isEmpty) {
+      resolvedName = 'Cineza Member';
+    }
+
+    if (fbUser != null && resolvedName != 'Cineza Member' && fbUser.displayName != resolvedName) {
       try {
-        await user.updateDisplayName(resolvedName);
-        await user.reload();
+        await fbUser.updateDisplayName(resolvedName);
+        await fbUser.reload();
       } catch (_) {}
     }
 
     // Sync to MySQL
-    if (resolvedName.isNotEmpty) {
+    if (uid.isNotEmpty) {
       try {
         await _apiService.syncUser(
-          firebaseUid: user.uid,
+          firebaseUid: uid,
           username: resolvedName,
-          email: user.email,
-          phoneNumber: user.phoneNumber,
-          authProvider: user.phoneNumber != null ? 'PHONE' : 'GOOGLE',
-          profilePicUrl: user.photoURL,
+          email: email,
+          phoneNumber: phoneNumber,
+          authProvider: phoneNumber != null ? 'PHONE' : 'GOOGLE',
+          profilePicUrl: photoUrl,
         );
       } catch (_) {}
     }
 
-    return resolvedName.isNotEmpty ? resolvedName : 'Cineza User';
+    // Update active session user
+    final currentSession = currentUserNotifier.value;
+    if (currentSession != null) {
+      final updated = currentSession.copyWith(displayName: resolvedName);
+      setSessionUser(updated);
+    }
+
+    return resolvedName;
   }
 
   /// Update the current user's username both in Firebase Auth and MySQL database
   Future<void> updateUsername(String newUsername) async {
-    final user = _auth.currentUser;
-    if (user != null) {
-      final cleanName = newUsername.trim();
-      await user.updateDisplayName(cleanName);
-      await user.reload();
+    final cleanName = newUsername.trim();
+    final fbUser = _auth.currentUser;
+    if (fbUser != null) {
+      try {
+        await fbUser.updateDisplayName(cleanName);
+        await fbUser.reload();
+      } catch (_) {}
 
-      await _apiService.syncUser(
-        firebaseUid: user.uid,
-        username: cleanName,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
-        authProvider: user.phoneNumber != null ? 'PHONE' : 'GOOGLE',
-        profilePicUrl: user.photoURL,
-      );
+      try {
+        await _apiService.syncUser(
+          firebaseUid: fbUser.uid,
+          username: cleanName,
+          email: fbUser.email,
+          phoneNumber: fbUser.phoneNumber,
+          authProvider: fbUser.phoneNumber != null ? 'PHONE' : 'GOOGLE',
+          profilePicUrl: fbUser.photoURL,
+        );
+      } catch (_) {}
+    }
+
+    final currentSession = currentUserNotifier.value;
+    if (currentSession != null) {
+      final updated = currentSession.copyWith(displayName: cleanName);
+      setSessionUser(updated);
+
+      if (fbUser == null) {
+        try {
+          await _apiService.syncUser(
+            firebaseUid: updated.uid,
+            username: cleanName,
+            email: updated.email,
+            phoneNumber: updated.phoneNumber,
+            authProvider: updated.authProvider,
+            profilePicUrl: updated.photoURL,
+          );
+        } catch (_) {}
+      }
     }
   }
 
@@ -159,10 +294,15 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    return await _auth.signInWithEmailAndPassword(
+    final cred = await _auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
+    if (cred.user != null) {
+      final cinezaUser = CinezaUser.fromFirebaseUser(cred.user!);
+      setSessionUser(cinezaUser);
+    }
+    return cred;
   }
 
   Future<UserCredential> registerWithEmailAndPassword({
@@ -176,6 +316,13 @@ class AuthService {
     );
     if (displayName != null && displayName.trim().isNotEmpty) {
       await userCredential.user?.updateDisplayName(displayName.trim());
+    }
+    if (userCredential.user != null) {
+      final cinezaUser = CinezaUser.fromFirebaseUser(
+        userCredential.user!,
+        overrideDisplayName: displayName,
+      );
+      setSessionUser(cinezaUser);
     }
     return userCredential;
   }
@@ -197,7 +344,12 @@ class AuthService {
         throw Exception('Worker did not return a valid custom token.');
       }
 
-      return await _auth.signInWithCustomToken(customToken);
+      final cred = await _auth.signInWithCustomToken(customToken);
+      if (cred.user != null) {
+        final cinezaUser = CinezaUser.fromFirebaseUser(cred.user!);
+        setSessionUser(cinezaUser);
+      }
+      return cred;
     } else {
       String errorMessage =
           'Failed to verify OTP with Worker (status ${response.statusCode})';
@@ -230,7 +382,12 @@ class AuthService {
       smsCode: smsCode,
     );
 
-    return _auth.signInWithCredential(credential);
+    final cred = await _auth.signInWithCredential(credential);
+    if (cred.user != null) {
+      final cinezaUser = CinezaUser.fromFirebaseUser(cred.user!);
+      setSessionUser(cinezaUser);
+    }
+    return cred;
   }
 
   Future<UserCredential> signInAnonymously() async {
@@ -254,6 +411,8 @@ class AuthService {
 
   /// Completely wipes all user, location, and session-specific data across Cineza
   static void clearAllUserData() {
+    currentUserNotifier.value = null;
+
     // 1. Reset user's chosen location back to 'LOCATION'
     LocationService.clearCity();
 
@@ -262,8 +421,8 @@ class AuthService {
 
     // 3. Clear web sessionStorage and any cached auth/otp state
     clearWebSession();
+    try {
+      saveWebUserSession('');
+    } catch (_) {}
   }
-
-  User? get currentUser => _auth.currentUser;
 }
-

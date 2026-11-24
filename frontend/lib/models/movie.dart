@@ -31,6 +31,67 @@ class Movie {
     return '${hours}h ${minutes}m';
   }
 
+  String get resolvedBackdropUrl {
+    final titleKey = title.toLowerCase().trim();
+    if (titleKey.contains('kgf') || titleKey.contains('k.g.f')) {
+      return 'assets/images/titlecard_kgf2.png';
+    }
+    if (titleKey.contains('soorarai')) {
+      return 'assets/images/titlecard_soorarai_pottru.jpg';
+    }
+    if (titleKey.contains('maanaadu')) {
+      return 'assets/images/titlecard_maanaadu.png';
+    }
+    if (titleKey == '24' || titleKey.contains('24')) {
+      return 'assets/images/titlecard_24.png';
+    }
+    if (backdropUrl.isNotEmpty && backdropUrl.startsWith('assets/')) {
+      return backdropUrl;
+    }
+    return backdropUrl.isNotEmpty ? backdropUrl : posterUrl;
+  }
+
+  String get resolvedPosterUrl {
+    final titleKey = title.toLowerCase().trim();
+    if (titleKey.contains('kgf') || titleKey.contains('k.g.f')) {
+      return 'assets/images/movie_kgf2.jpg';
+    }
+    if (titleKey.contains('soorarai')) {
+      return 'assets/images/movie_soorarai_pottru.jpg';
+    }
+    if (titleKey.contains('maanaadu')) {
+      return 'assets/images/movie_maanaadu.jpg';
+    }
+    if (titleKey == '24' || titleKey.contains('24')) {
+      return 'assets/images/movie_24.jpg';
+    }
+    if (titleKey.contains('vikram')) {
+      return 'assets/images/movie_vikram.jpg';
+    }
+    return posterUrl;
+  }
+
+  /// Official Movie Trailer YouTube ID
+  String? get trailerYoutubeId {
+    final titleKey = title.toLowerCase().trim();
+    if (titleKey == '24' || titleKey.contains('24')) {
+      return 'wqXE_es_I3M'; // Official 24 Movie Trailer
+    }
+    if (titleKey.contains('kgf') || titleKey.contains('k.g.f')) {
+      return 'JKa05nyUmuQ'; // K.G.F Chapter 2 Trailer
+    }
+    if (titleKey.contains('soorarai')) {
+      return 'fa_DIwRsa9o'; // Soorarai Pottru Trailer
+    }
+    if (titleKey.contains('maanaadu')) {
+      return 't9krhbwD-4M'; // Maanaadu Trailer
+    }
+    if (titleKey.contains('vikram')) {
+      return 'OKBMCLzuvWU'; // Vikram Trailer
+    }
+    return null;
+  }
+
   factory Movie.fromJson(Map<String, dynamic> json) {
     return Movie(
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),

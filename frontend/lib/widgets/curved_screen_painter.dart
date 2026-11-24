@@ -18,24 +18,25 @@ class CurvedScreenPainter extends CustomPainter {
     final Paint beamPaint = Paint()
       ..shader = RadialGradient(
         center: Alignment.topCenter,
-        radius: 0.85,
+        radius: 0.95,
         colors: isDark
             ? [
-                AppTheme.cyanAccent.withValues(alpha: 0.18),
-                AppTheme.primary.withValues(alpha: 0.08),
+                AppTheme.cyanAccent.withValues(alpha: 0.24),
+                AppTheme.primary.withValues(alpha: 0.12),
+                AppTheme.darkPrimaryContainer.withValues(alpha: 0.04),
                 Colors.transparent,
               ]
             : [
-                const Color(0xFF0284C7).withValues(alpha: 0.12),
-                const Color(0xFFD97706).withValues(alpha: 0.06),
+                const Color(0xFF0284C7).withValues(alpha: 0.16),
+                const Color(0xFF0062FF).withValues(alpha: 0.08),
                 Colors.transparent,
               ],
-        stops: const [0.0, 0.4, 1.0],
+        stops: isDark ? const [0.0, 0.35, 0.70, 1.0] : const [0.0, 0.45, 1.0],
       ).createShader(glowRect);
 
     final Path beamPath = Path()
-      ..moveTo(size.width * 0.1, 0)
-      ..quadraticBezierTo(size.width * 0.5, size.height * 0.35, size.width * 0.9, 0)
+      ..moveTo(size.width * 0.08, 0)
+      ..quadraticBezierTo(size.width * 0.5, size.height * 0.38, size.width * 0.92, 0)
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
@@ -53,32 +54,38 @@ class CurvedScreenPainter extends CustomPainter {
     );
 
     final Paint screenGlowPaint = Paint()
-      ..color = (isDark ? AppTheme.cyanAccent : const Color(0xFF0284C7)).withValues(alpha: 0.4)
+      ..color = (isDark ? AppTheme.cyanAccent : const Color(0xFF0284C7)).withValues(alpha: 0.5)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 6.0
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+      ..strokeWidth = 7.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
     canvas.drawPath(screenPath, screenGlowPaint);
 
     final Paint screenPaint = Paint()
       ..shader = (isDark
               ? const LinearGradient(
                   colors: [
+                    Color(0xFF0284C7),
                     Color(0xFF38BDF8),
-                    Color(0xFFE0F2FE),
+                    Color(0xFFFFFFFF),
                     Color(0xFF38BDF8),
+                    Color(0xFF0284C7),
                   ],
+                  stops: [0.0, 0.25, 0.5, 0.75, 1.0],
                 )
               : const LinearGradient(
                   colors: [
+                    Color(0xFF0062FF),
                     Color(0xFF0284C7),
-                    Color(0xFF0EA5E9),
+                    Color(0xFF60A5FA),
                     Color(0xFF0284C7),
+                    Color(0xFF0062FF),
                   ],
+                  stops: [0.0, 0.25, 0.5, 0.75, 1.0],
                 ))
           .createShader(Rect.fromLTWH(0, 0, size.width, size.height))
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
-      ..strokeWidth = 3.5;
+      ..strokeWidth = 4.0;
 
     canvas.drawPath(screenPath, screenPaint);
   }

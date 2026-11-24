@@ -91,6 +91,27 @@ void playClapperSound() {
   } catch (_) {}
 }
 
+@JS('cinezaSaveUserSession')
+external void _saveUserSessionJs(JSString? data);
+
+@JS('cinezaLoadUserSession')
+external JSString? _loadUserSessionJs();
+
+void saveWebUserSession(String userDataJson) {
+  try {
+    _saveUserSessionJs(userDataJson.toJS);
+  } catch (_) {}
+}
+
+String? loadWebUserSession() {
+  try {
+    final res = _loadUserSessionJs();
+    return res?.toDart;
+  } catch (_) {
+    return null;
+  }
+}
+
 @JS('cinezaClearWebSession')
 external void _clearWebSessionJs();
 
@@ -99,5 +120,6 @@ void clearWebSession() {
     _clearWebSessionJs();
   } catch (_) {}
 }
+
 
 
