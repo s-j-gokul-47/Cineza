@@ -1,6 +1,6 @@
 package com.cineza.config;
 
-import com.cineza.security.JwtAuthenticationFilter;
+import com.cineza.security.CinezaApiGatewayMiddleware;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -19,10 +19,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CinezaApiGatewayMiddleware gatewayMiddleware;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    public SecurityConfig(CinezaApiGatewayMiddleware gatewayMiddleware) {
+        this.gatewayMiddleware = gatewayMiddleware;
     }
 
     @Bean
@@ -42,7 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(gatewayMiddleware, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
