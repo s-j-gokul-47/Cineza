@@ -2,6 +2,7 @@ package com.cineza.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
@@ -12,8 +13,17 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-    private final String jwtSecret = "cinezaSuperSecureSecretKeyForMovieTicketingPlatform2026WithSufficientLength32Bytes";
-    private final long jwtExpirationInMs = 86400000; // 24 hours
+    private final String jwtSecret;
+    private final long jwtExpirationInMs;
+
+    public JwtTokenProvider(
+            @Value("${cineza.jwt.secret:your_local_dev_jwt_secret_key_change_in_production_64chars}") String jwtSecret,
+            @Value("${cineza.jwt.expiration-ms:86400000}") long jwtExpirationInMs) {
+        this.jwtSecret = (jwtSecret == null || jwtSecret.isBlank())
+                ? "your_local_dev_jwt_secret_key_change_in_production_64chars"
+                : jwtSecret;
+        this.jwtExpirationInMs = jwtExpirationInMs;
+    }
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));

@@ -1,3 +1,5 @@
+import '../config/app_config.dart';
+
 class Movie {
   final int id;
   final String title;
@@ -97,8 +99,8 @@ class Movie {
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
       title: json['title'] ?? '',
       synopsis: json['synopsis'] ?? '',
-      posterUrl: json['posterUrl'] ?? 'https://via.placeholder.com/300x450',
-      backdropUrl: json['backdropUrl'] ?? 'https://via.placeholder.com/800x450',
+      posterUrl: json['posterUrl'] ?? '${AppConfig.placeholderImageBaseUrl}/300x450',
+      backdropUrl: json['backdropUrl'] ?? '${AppConfig.placeholderImageBaseUrl}/800x450',
       genre: json['genre'] ?? 'Cinema',
       language: json['language'] ?? 'English',
       durationMinutes: json['durationMinutes'] is int

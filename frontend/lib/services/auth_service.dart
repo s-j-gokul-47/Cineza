@@ -3,14 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 import '../models/user.dart';
 import 'api_service.dart';
 import 'location_service.dart';
 import 'login_js_helper.dart';
 
 class AuthService {
-  static const String _workerOtpUrl =
-      'https://cineza-auth-api.gokulakannansj.workers.dev/auth/otp';
+  static const String _workerOtpUrl = AppConfig.authOtpUrl;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ApiService _apiService = ApiService();

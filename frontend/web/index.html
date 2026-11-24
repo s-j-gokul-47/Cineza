@@ -49,7 +49,7 @@
     window.cinezaMsg91LastError = null;
 
     var configuration = {
-      widgetId: "366a79684469353833313838",
+      widgetId: window.cinezaMsg91WidgetId || "366a79684469353833313838",
       tokenAuth: window.cinezaMsg91TokenAuth || "YOUR_MSG91_WIDGET_TOKEN",
       exposeMethods: true,
       success: function (data) {
@@ -75,7 +75,7 @@
       }
     };
 
-    // Resilient script loader with fallback URLs as provided by MSG91
+    // Resilient script loader with fallback URLs configurable via msg91_config.js
     (function loadOtpScript(urls) {
       let i = 0;
       function attempt() {
@@ -100,10 +100,12 @@
         document.head.appendChild(s);
       }
       attempt();
-    })([
-      'https://verify.msg91.com/otp-provider.js',
-      'https://verify.phone91.com/otp-provider.js'
-    ]);
+    })(
+      window.cinezaMsg91ScriptUrls || [
+        'https://verify.msg91.com/otp-provider.js',
+        'https://verify.phone91.com/otp-provider.js'
+      ]
+    );
 
     // Safe wrappers called by Flutter
     window.cinezaSendOtp = function (identifier, successCb, failureCb) {

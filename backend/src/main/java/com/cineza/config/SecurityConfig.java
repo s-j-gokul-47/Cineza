@@ -39,6 +39,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/movies/**").permitAll()
                         .requestMatchers("/api/v1/shows/**").permitAll()
                         .requestMatchers("/api/v1/theatres/**").permitAll()
+                        .requestMatchers("/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
                 )

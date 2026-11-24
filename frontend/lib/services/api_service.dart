@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 import '../models/city.dart';
 import '../models/movie.dart';
 import '../models/show.dart';
@@ -9,7 +10,7 @@ import '../models/seat_lock_response.dart';
 import '../models/booking_response.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8080/api/v1';
+  static const String baseUrl = AppConfig.apiBaseUrl;
 
   // In-memory session identifier for seat locking
   static String sessionId = 'user_${DateTime.now().millisecondsSinceEpoch}';
@@ -255,7 +256,7 @@ class ApiService {
         bookingId: 999,
         bookingReference: 'CNZ-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
         movieTitle: 'Dune: Part Two',
-        posterUrl: 'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
+        posterUrl: AppConfig.defaultPosterUrl,
         theatreName: 'Cineza IMAX Grand 4K',
         screenName: 'Auditorium 1 (IMAX Laser)',
         showTime: DateTime.now().add(const Duration(hours: 3)),

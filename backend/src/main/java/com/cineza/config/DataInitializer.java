@@ -7,19 +7,27 @@ import com.cineza.model.enums.SeatType;
 import com.cineza.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
+    private static final String SEED_LOCK_KEY = "cineza:init:seed-lock";
+    private static final Duration SEED_LOCK_TTL = Duration.ofMinutes(2);
 
     private final CityRepository cityRepository;
     private final TheatreRepository theatreRepository;
@@ -29,6 +37,8 @@ public class DataInitializer implements CommandLineRunner {
     private final ShowRepository showRepository;
     private final BookingRepository bookingRepository;
     private final BookingSeatRepository bookingSeatRepository;
+    private final StringRedisTemplate redisTemplate;
+    private final TransactionTemplate transactionTemplate;
 
     public DataInitializer(CityRepository cityRepository,
                            TheatreRepository theatreRepository,
@@ -37,7 +47,9 @@ public class DataInitializer implements CommandLineRunner {
                            MovieRepository movieRepository,
                            ShowRepository showRepository,
                            BookingRepository bookingRepository,
-                           BookingSeatRepository bookingSeatRepository) {
+                           BookingSeatRepository bookingSeatRepository,
+                           ObjectProvider<StringRedisTemplate> redisTemplateProvider,
+                           PlatformTransactionManager transactionManager) {
         this.cityRepository = cityRepository;
         this.theatreRepository = theatreRepository;
         this.screenRepository = screenRepository;
@@ -46,10 +58,74 @@ public class DataInitializer implements CommandLineRunner {
         this.showRepository = showRepository;
         this.bookingRepository = bookingRepository;
         this.bookingSeatRepository = bookingSeatRepository;
+        this.redisTemplate = redisTemplateProvider.getIfAvailable();
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     @Override
     public void run(String... args) {
+        if (cityRepository.count() > 0) {
+            log.info("Cineza database already seeded. Skipping initial seeding.");
+            return;
+        }
+
+        // Coordinate across replicas booting concurrently so only one seeds the database
+        String lockToken = UUID.randomUUID().toString();
+        boolean lockHeld = false;
+
+        if (redisTemplate != null) {
+            try {
+                Boolean acquired = redisTemplate.opsForValue().setIfAbsent(SEED_LOCK_KEY, lockToken, SEED_LOCK_TTL);
+                if (Boolean.FALSE.equals(acquired)) {
+                    log.info("Another replica holds the database seed lock. Waiting for peer initialization...");
+                    waitForPeerSeeding();
+                    return;
+                }
+                lockHeld = true;
+            } catch (Exception ex) {
+                log.warn("Could not acquire Redis seed lock ({}). Proceeding with transactional check.", ex.getMessage());
+            }
+        }
+
+        try {
+            transactionTemplate.executeWithoutResult(status -> seedInitialDataIfEmpty());
+        } catch (DataIntegrityViolationException ex) {
+            log.info("Database already seeded concurrently by another instance. Skipping.");
+        } finally {
+            if (lockHeld && redisTemplate != null) {
+                try {
+                    String currentOwner = redisTemplate.opsForValue().get(SEED_LOCK_KEY);
+                    if (lockToken.equals(currentOwner)) {
+                        redisTemplate.delete(SEED_LOCK_KEY);
+                    }
+                } catch (Exception ex) {
+                    log.warn("Could not release Redis seed lock: {}", ex.getMessage());
+                }
+            }
+        }
+    }
+
+    private void waitForPeerSeeding() {
+        for (int attempt = 0; attempt < 30; attempt++) {
+            if (cityRepository.count() > 0) {
+                log.info("Cineza database seeded by peer replica. Continuing startup.");
+                return;
+            }
+            try {
+                if (Boolean.FALSE.equals(redisTemplate.hasKey(SEED_LOCK_KEY))) {
+                    break;
+                }
+                Thread.sleep(500);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (Exception ignored) {
+                break;
+            }
+        }
+    }
+
+    private void seedInitialDataIfEmpty() {
         if (cityRepository.count() > 0) {
             log.info("Cineza database already seeded. Skipping initial seeding.");
             return;

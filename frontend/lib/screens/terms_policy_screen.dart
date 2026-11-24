@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../config/app_config.dart';
 import '../theme/app_theme.dart';
 
 /// Screen displaying Cineza's official Terms of Service and Privacy Policy.
@@ -219,7 +220,7 @@ class _TermsPolicyScreenState extends State<TermsPolicyScreen>
           icon: Icon(Icons.link_rounded, color: kTextMuted, size: 20),
           onPressed: () {
             Clipboard.setData(
-              const ClipboardData(text: 'https://cineza.com/terms-policy'),
+              const ClipboardData(text: AppConfig.termsPolicyUrl),
             );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(

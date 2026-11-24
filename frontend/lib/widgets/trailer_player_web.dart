@@ -1,6 +1,7 @@
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
+import '../config/app_config.dart';
 
 final Set<String> _registeredTrailerViewTypes = {};
 
@@ -16,7 +17,7 @@ Widget buildTrailerView({
       (int viewId) {
         final iframe = html.IFrameElement()
           ..src =
-              'https://www.youtube.com/embed/$youtubeId?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1'
+              '${AppConfig.trailerEmbedBaseUrl}/$youtubeId?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&playsinline=1'
           ..style.border = 'none'
           ..style.width = '100%'
           ..style.height = '100%'

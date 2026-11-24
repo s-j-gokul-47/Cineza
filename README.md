@@ -45,13 +45,21 @@ Cineza/
 
 ## 🚀 Quick Start
 
-### 1. Start Infrastructure (Docker)
+### 1. Start Backend Cluster & Infrastructure (Docker)
 ```bash
-docker-compose up -d
+docker-compose up -d --build
 ```
 Starts:
-- **MySQL 8.0**: Port `3307` (`cineza_db`)
-- **Redis 7 (Alpine)**: Port `6379`
+- **MySQL 8.0**: Bound to `127.0.0.1:3307` (`cineza_db`)
+- **Redis 7 (Alpine)**: Bound to `127.0.0.1:6379`
+- **Spring Boot Backend (`backend`)**: `3` replicas managed via `deploy.replicas`
+- **Nginx Load Balancer (`nginx`)**: Exposed on `http://localhost:8080`, resolving `backend` dynamically via Docker DNS
+
+To scale backend replicas without editing config files:
+```bash
+docker-compose up -d --scale backend=5 --no-recreate
+```
+(For production/VPS deployments, copy `.env.example` to `.env` and replace `MYSQL_ROOT_PASSWORD` and `CINEZA_JWT_SECRET`.)
 
 ### 2. Run Backend (Spring Boot)
 ```bash
@@ -65,9 +73,15 @@ The application automatically seeds cities, theatres, auditoriums, tiered seats,
 ```bash
 cd frontend
 flutter pub get
-flutter run -d chrome --web-port 3000
+flutter run -d chrome --web-port 3000 --dart-define-from-file=../.env.example
 ```
 Web app runs on `http://localhost:3000`.
+
+### 4. Environment & Service Discovery Variables
+All service URLs, ports, origins, and secrets can be overridden via environment variables (see [`.env.example`](.env.example)):
+- **Backend (`application.yml` & `docker-compose.yml`)**: `SERVER_PORT`, `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `SPRING_DATASOURCE_URL`, `SPRING_DATA_REDIS_HOST`, `SPRING_DATA_REDIS_PORT`, `CINEZA_CORS_ALLOWED_ORIGINS`, `CINEZA_JWT_SECRET`
+- **Nginx & Caddy**: `NGINX_PORT`, `NGINX_DNS_RESOLVER`, `BACKEND_SERVICE_URL`, `CINEZA_DOMAIN`, `CINEZA_FRONTEND_UPSTREAM`, `CINEZA_API_ORIGIN`, `CINEZA_AUTH_OTP_ORIGIN`
+- **Frontend (`--dart-define` / `--dart-define-from-file`)**: `CINEZA_API_BASE_URL`, `CINEZA_AUTH_OTP_URL`, `CINEZA_PUBLIC_WEB_URL`, `CINEZA_TRAILER_EMBED_BASE_URL`, `CINEZA_PLACEHOLDER_IMAGE_BASE_URL`, `CINEZA_DEFAULT_POSTER_URL`
 
 ---
 
