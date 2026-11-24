@@ -11,6 +11,7 @@ class BookingReceipt {
   final String status;
   final DateTime bookedAt;
   final String qrCodeData;
+  final String? notificationMessage;
 
   BookingReceipt({
     required this.bookingId,
@@ -25,6 +26,7 @@ class BookingReceipt {
     required this.status,
     required this.bookedAt,
     required this.qrCodeData,
+    this.notificationMessage,
   });
 
   factory BookingReceipt.fromJson(Map<String, dynamic> json) {
@@ -43,6 +45,7 @@ class BookingReceipt {
       status: json['status'] ?? 'CONFIRMED',
       bookedAt: DateTime.tryParse(json['bookedAt']?.toString() ?? '') ?? DateTime.now(),
       qrCodeData: json['qrCodeData'] ?? '',
+      notificationMessage: json['notificationMessage']?.toString(),
     );
   }
 }

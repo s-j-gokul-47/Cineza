@@ -73,7 +73,9 @@ class BookingSuccessDialog extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Booking Confirmed!',
+                          receipt.status == 'PENDING'
+                              ? 'Booking Reserved (Pending)'
+                              : 'Booking Confirmed!',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -251,7 +253,37 @@ class BookingSuccessDialog extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+
+                  if (receipt.notificationMessage != null &&
+                      receipt.notificationMessage!.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: activePrimary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: activePrimary.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline_rounded, size: 16, color: activePrimary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              receipt.notificationMessage!,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: AppTheme.getTextSecondary(isDark),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(

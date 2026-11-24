@@ -25,7 +25,7 @@ spring:
       port: ${SPRING_DATA_REDIS_PORT:6379}
       timeout: 5000ms
 
-# CORS, JWT, and Seat lock configuration
+# CORS, JWT, Seat lock, Resilience, and External Integrations configuration
 cineza:
   cors:
     allowed-origin-patterns: ${CINEZA_CORS_ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*,https://localhost:*,https://127.0.0.1:*}
@@ -35,6 +35,22 @@ cineza:
     ttl-minutes: 10
     ttl-seconds: 600
     lock-prefix: "cineza:lock:show:"
+  resilience:
+    failure-threshold: ${CINEZA_CB_FAILURE_THRESHOLD:3}
+    open-duration-ms: ${CINEZA_CB_OPEN_DURATION_MS:30000}
+    default-timeout-ms: ${CINEZA_CB_TIMEOUT_MS:4000}
+  integrations:
+    auth:
+      url: ${CINEZA_AUTH_GATEWAY_URL:}
+      timeout-ms: ${CINEZA_AUTH_TIMEOUT_MS:4000}
+    payments:
+      url: ${CINEZA_PAYMENT_GATEWAY_URL:}
+      api-key: ${CINEZA_PAYMENT_API_KEY:}
+      timeout-ms: ${CINEZA_PAYMENT_TIMEOUT_MS:4000}
+    email:
+      url: ${CINEZA_EMAIL_SERVICE_URL:}
+      api-key: ${CINEZA_EMAIL_API_KEY:}
+      timeout-ms: ${CINEZA_EMAIL_TIMEOUT_MS:3000}
 
 logging:
   level:

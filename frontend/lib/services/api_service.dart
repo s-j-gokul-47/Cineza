@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
+import 'circuit_breaker.dart';
 import '../models/city.dart';
 import '../models/movie.dart';
 import '../models/show.dart';
@@ -11,6 +13,8 @@ import '../models/booking_response.dart';
 
 class ApiService {
   static const String baseUrl = AppConfig.apiBaseUrl;
+  static const Duration _defaultTimeout =
+      Duration(milliseconds: AppConfig.apiTimeoutMs);
 
   // In-memory session identifier for seat locking
   static String sessionId = 'user_${DateTime.now().millisecondsSinceEpoch}';
@@ -21,38 +25,71 @@ class ApiService {
   }
 
   final http.Client _client;
+  final CircuitBreaker _circuitBreaker;
 
-  ApiService({http.Client? client}) : _client = client ?? http.Client();
+  ApiService({http.Client? client, CircuitBreaker? circuitBreaker})
+      : _client = client ?? http.Client(),
+        _circuitBreaker = circuitBreaker ?? ServiceCircuitBreakers.backendApi;
+
+  Future<T> _execute<T>({
+    required Future<http.Response> Function() request,
+    required FutureOr<T> Function(http.Response response) onSuccess,
+    required FutureOr<T> Function(Object error) fallback,
+    Duration timeout = _defaultTimeout,
+  }) {
+    return _circuitBreaker.run<T>(
+      timeout: timeout,
+      shouldTrip: (e) => e is! ClientRejectionException,
+      action: () async {
+        final response = await request();
+        if (response.statusCode >= 500 || response.statusCode == 429) {
+          throw Exception(
+              'Backend returned transient HTTP ${response.statusCode}');
+        }
+        return await onSuccess(response);
+      },
+      fallback: fallback,
+    );
+  }
 
   /// Fetch all available cities
   Future<List<City>> getCities() async {
-    try {
-      final response = await _client.get(Uri.parse('$baseUrl/cities')).timeout(
-        const Duration(seconds: 4),
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => City.fromJson(json)).toList();
-      }
-    } catch (e) {
-      // Return realistic defaults if backend is initializing
-    }
-    return [
-      City(id: 5, name: 'Chennai', state: 'Tamil Nadu', country: 'India'),
-      City(id: 6, name: 'Coimbatore', state: 'Tamil Nadu', country: 'India'),
-      City(id: 7, name: 'Madurai', state: 'Tamil Nadu', country: 'India'),
-      City(id: 8, name: 'Mumbai', state: 'Maharashtra', country: 'India'),
-      City(id: 9, name: 'Bengaluru', state: 'Karnataka', country: 'India'),
-      City(id: 10, name: 'Hyderabad', state: 'Telangana', country: 'India'),
-      City(id: 11, name: 'New Delhi', state: 'Delhi NCR', country: 'India'),
-      City(id: 1, name: 'New York', state: 'NY', country: 'USA'),
-      City(id: 2, name: 'Los Angeles', state: 'CA', country: 'USA'),
-      City(id: 3, name: 'San Francisco', state: 'CA', country: 'USA'),
-      City(id: 4, name: 'Chicago', state: 'IL', country: 'USA'),
-      City(id: 12, name: 'London', state: 'Greater London', country: 'United Kingdom'),
-      City(id: 13, name: 'Dubai', state: 'Dubai', country: 'United Arab Emirates'),
-    ];
+    return _execute<List<City>>(
+      request: () => _client.get(Uri.parse('$baseUrl/cities')),
+      onSuccess: (response) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          return data.map((json) => City.fromJson(json)).toList();
+        }
+        throw Exception('Unexpected status ${response.statusCode}');
+      },
+      fallback: (_) => _defaultFallbackCities(),
+    );
   }
+
+  List<City> _defaultFallbackCities() => [
+        City(id: 5, name: 'Chennai', state: 'Tamil Nadu', country: 'India'),
+        City(id: 6, name: 'Coimbatore', state: 'Tamil Nadu', country: 'India'),
+        City(id: 7, name: 'Madurai', state: 'Tamil Nadu', country: 'India'),
+        City(id: 8, name: 'Mumbai', state: 'Maharashtra', country: 'India'),
+        City(id: 9, name: 'Bengaluru', state: 'Karnataka', country: 'India'),
+        City(id: 10, name: 'Hyderabad', state: 'Telangana', country: 'India'),
+        City(id: 11, name: 'New Delhi', state: 'Delhi NCR', country: 'India'),
+        City(id: 1, name: 'New York', state: 'NY', country: 'USA'),
+        City(id: 2, name: 'Los Angeles', state: 'CA', country: 'USA'),
+        City(id: 3, name: 'San Francisco', state: 'CA', country: 'USA'),
+        City(id: 4, name: 'Chicago', state: 'IL', country: 'USA'),
+        City(
+            id: 12,
+            name: 'London',
+            state: 'Greater London',
+            country: 'United Kingdom'),
+        City(
+            id: 13,
+            name: 'Dubai',
+            state: 'Dubai',
+            country: 'United Arab Emirates'),
+      ];
 
   /// Search and discover movies with city, search, and genre filters
   Future<List<Movie>> getMovies({int? cityId, String? search, String? genre}) async {
@@ -67,38 +104,50 @@ class ApiService {
 
     final uri = Uri.parse('$baseUrl/movies').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
-    try {
-      final response = await _client.get(uri);
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        return data.map((json) => Movie.fromJson(json)).toList();
-      }
-    } catch (e) {
-      // Fallback
-    }
-
-    var result = List<Movie>.from(_fallbackMovies);
-    if (genre != null && genre.isNotEmpty && genre.toLowerCase() != 'all') {
-      result = result.where((m) => m.genre.toLowerCase() == genre.toLowerCase()).toList();
-    }
-    if (search != null && search.isNotEmpty) {
-      final q = search.toLowerCase();
-      result = result.where((m) => m.title.toLowerCase().contains(q) || m.genre.toLowerCase().contains(q)).toList();
-    }
-    return result;
+    return _execute<List<Movie>>(
+      request: () => _client.get(uri),
+      onSuccess: (response) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          return data.map((json) => Movie.fromJson(json)).toList();
+        }
+        throw Exception('Unexpected status ${response.statusCode}');
+      },
+      fallback: (_) {
+        var result = List<Movie>.from(_fallbackMovies);
+        if (genre != null && genre.isNotEmpty && genre.toLowerCase() != 'all') {
+          result = result
+              .where((m) => m.genre.toLowerCase() == genre.toLowerCase())
+              .toList();
+        }
+        if (search != null && search.isNotEmpty) {
+          final q = search.toLowerCase();
+          result = result
+              .where((m) =>
+                  m.title.toLowerCase().contains(q) ||
+                  m.genre.toLowerCase().contains(q))
+              .toList();
+        }
+        return result;
+      },
+    );
   }
 
   /// Fetch single movie details
   Future<Movie?> getMovieById(int id) async {
-    try {
-      final response = await _client.get(Uri.parse('$baseUrl/movies/$id'));
-      if (response.statusCode == 200) {
-        return Movie.fromJson(json.decode(response.body));
-      }
-    } catch (e) {
-      // Fallback
-    }
-    return _fallbackMovies.firstWhere((m) => m.id == id, orElse: () => _fallbackMovies.first);
+    return _execute<Movie?>(
+      request: () => _client.get(Uri.parse('$baseUrl/movies/$id')),
+      onSuccess: (response) {
+        if (response.statusCode == 200) {
+          return Movie.fromJson(json.decode(response.body));
+        }
+        throw Exception('Unexpected status ${response.statusCode}');
+      },
+      fallback: (_) => _fallbackMovies.firstWhere(
+        (m) => m.id == id,
+        orElse: () => _fallbackMovies.first,
+      ),
+    );
   }
 
   /// Fetch available shows for a movie and city
@@ -117,23 +166,28 @@ class ApiService {
 
     final uri = Uri.parse('$baseUrl/shows').replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
-    try {
-      final response = await _client.get(uri);
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        if (data.isNotEmpty) {
-          return data.map((json) => ShowItem.fromJson(json)).toList();
+    return _execute<List<ShowItem>>(
+      request: () => _client.get(uri),
+      onSuccess: (response) {
+        if (response.statusCode == 200) {
+          final List<dynamic> data = json.decode(response.body);
+          if (data.isNotEmpty) {
+            return data.map((json) => ShowItem.fromJson(json)).toList();
+          }
         }
-      }
-    } catch (e) {
-      // Fallback to real local theatre generator
-    }
-
-    return _generateRealShowsForLocation(
-      movieId: movieId ?? 1,
-      movieTitle: movieTitle ?? '24',
-      cityName: cityName ?? 'Chennai',
-      dateStr: date,
+        return _generateRealShowsForLocation(
+          movieId: movieId ?? 1,
+          movieTitle: movieTitle ?? '24',
+          cityName: cityName ?? 'Chennai',
+          dateStr: date,
+        );
+      },
+      fallback: (_) => _generateRealShowsForLocation(
+        movieId: movieId ?? 1,
+        movieTitle: movieTitle ?? '24',
+        cityName: cityName ?? 'Chennai',
+        dateStr: date,
+      ),
     );
   }
 
@@ -153,30 +207,31 @@ class ApiService {
     final uri = Uri.parse('$baseUrl/shows/$showId/seats')
         .replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
-    try {
-      final response = await _client.get(uri);
-      if (response.statusCode == 200) {
-        return ShowSeatMap.fromJson(json.decode(response.body));
-      }
-    } catch (e) {
-      // Fallback
-    }
-
-    return _generateFallbackSeatMap(
-      showId,
-      movieTitle: movieTitle,
-      theatreName: theatreName,
-      screenName: screenName,
-      screenType: screenType,
-      basePrice: basePrice,
+    return _execute<ShowSeatMap>(
+      request: () => _client.get(uri),
+      onSuccess: (response) {
+        if (response.statusCode == 200) {
+          return ShowSeatMap.fromJson(json.decode(response.body));
+        }
+        throw Exception('Unexpected status ${response.statusCode}');
+      },
+      fallback: (_) => _generateFallbackSeatMap(
+        showId,
+        movieTitle: movieTitle,
+        theatreName: theatreName,
+        screenName: screenName,
+        screenType: screenType,
+        basePrice: basePrice,
+      ),
     );
   }
 
   /// Lock seats in Redis with a 10-minute TTL
   Future<SeatLockResult> lockSeats(int showId, List<int> seatIds, String userId) async {
     final uri = Uri.parse('$baseUrl/shows/$showId/seats/lock');
-    try {
-      final response = await _client.post(
+    return _execute<SeatLockResult>(
+      timeout: const Duration(seconds: 5),
+      request: () => _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -184,30 +239,30 @@ class ApiService {
           'seatIds': seatIds,
           'userId': userId,
         }),
-      );
-
-      final Map<String, dynamic> body = json.decode(response.body);
-      return SeatLockResult.fromJson(body);
-    } catch (e) {
-      // Simulated successful lock with 600s TTL for offline resilience
-      return SeatLockResult(
+      ),
+      onSuccess: (response) {
+        final Map<String, dynamic> body = json.decode(response.body);
+        return SeatLockResult.fromJson(body);
+      },
+      fallback: (_) => SeatLockResult(
         success: true,
-        message: 'Seats locked for 10 minutes (Local Cache)',
+        message: 'Seats held locally for 10 minutes while backend reconnects.',
         lockToken: 'mock_token_${DateTime.now().millisecondsSinceEpoch}',
         showId: showId,
         lockedSeatIds: seatIds,
         conflictedSeatIds: [],
         ttlSeconds: 600,
         expiresAt: DateTime.now().add(const Duration(minutes: 10)),
-      );
-    }
+      ),
+    );
   }
 
   /// Release seat locks when user cancels
   Future<void> unlockSeats(int showId, List<int> seatIds, String userId) async {
     final uri = Uri.parse('$baseUrl/shows/$showId/seats/unlock');
-    try {
-      await _client.post(
+    await _execute<void>(
+      timeout: const Duration(seconds: 3),
+      request: () => _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -215,8 +270,10 @@ class ApiService {
           'seatIds': seatIds,
           'userId': userId,
         }),
-      );
-    } catch (_) {}
+      ),
+      onSuccess: (_) {},
+      fallback: (_) {},
+    );
   }
 
   /// Confirm booking and release Redis lock
@@ -228,8 +285,9 @@ class ApiService {
     required String phone,
   }) async {
     final uri = Uri.parse('$baseUrl/bookings');
-    try {
-      final response = await _client.post(
+    return _execute<BookingReceipt>(
+      timeout: const Duration(seconds: 6),
+      request: () => _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
@@ -239,34 +297,42 @@ class ApiService {
           'userEmail': email,
           'userPhone': phone,
         }),
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return BookingReceipt.fromJson(json.decode(response.body));
-      } else {
-        final err = json.decode(response.body);
-        throw Exception(err['message'] ?? 'Failed to confirm booking');
-      }
-    } catch (e) {
-      if (e is Exception && !e.toString().contains('Failed to connect')) {
-        rethrow;
-      }
-      // Offline fallback
-      return BookingReceipt(
-        bookingId: 999,
-        bookingReference: 'CNZ-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
-        movieTitle: 'Dune: Part Two',
-        posterUrl: AppConfig.defaultPosterUrl,
-        theatreName: 'Cineza IMAX Grand 4K',
-        screenName: 'Auditorium 1 (IMAX Laser)',
-        showTime: DateTime.now().add(const Duration(hours: 3)),
-        seatLabels: ['A3', 'A4'],
-        totalAmount: 48.00,
-        status: 'CONFIRMED',
-        bookedAt: DateTime.now(),
-        qrCodeData: 'CINEZA:DEMO:DUNE2:A3,A4',
-      );
-    }
+      ),
+      onSuccess: (response) {
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return BookingReceipt.fromJson(json.decode(response.body));
+        }
+        String errMsg = 'Failed to confirm booking';
+        try {
+          final err = json.decode(response.body);
+          if (err is Map && err['message'] != null) {
+            errMsg = err['message'].toString();
+          }
+        } catch (_) {}
+        throw ClientRejectionException(errMsg, response.statusCode);
+      },
+      fallback: (err) {
+        if (err is ClientRejectionException) {
+          throw Exception(err.message);
+        }
+        return BookingReceipt(
+          bookingId: 999,
+          bookingReference: 'CNZ-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+          movieTitle: 'Dune: Part Two',
+          posterUrl: AppConfig.defaultPosterUrl,
+          theatreName: 'Cineza IMAX Grand 4K',
+          screenName: 'Auditorium 1 (IMAX Laser)',
+          showTime: DateTime.now().add(const Duration(hours: 3)),
+          seatLabels: ['A3', 'A4'],
+          totalAmount: 48.00,
+          status: 'PENDING',
+          bookedAt: DateTime.now(),
+          qrCodeData: 'CINEZA:DEMO:DUNE2:A3,A4',
+          notificationMessage:
+              'Backend checkout is temporarily unreachable. Showing your offline M-Ticket preview; confirmation email will retry when back online.',
+        );
+      },
+    );
   }
 
   /// Synchronize or store user profile in backend MySQL users table
@@ -278,7 +344,7 @@ class ApiService {
     String? authProvider,
     String? profilePicUrl,
   }) async {
-    if (username != null && phoneNumber != null) {
+    if (phoneNumber != null) {
       cacheRegisteredUser(
         username: username,
         phoneNumber: phoneNumber,
@@ -286,42 +352,48 @@ class ApiService {
       );
     }
 
-    try {
-      final uri = Uri.parse('$baseUrl/users/sync');
-      final payload = {
-        'firebaseUid': firebaseUid,
-        'username': username,
-        'email': email,
-        'phoneNumber': phoneNumber,
-        'authProvider': authProvider ?? 'GOOGLE',
-        'profilePicUrl': profilePicUrl,
-      };
-      final response = await _client.post(
+    final uri = Uri.parse('$baseUrl/users/sync');
+    final payload = {
+      'firebaseUid': firebaseUid,
+      'username': username,
+      'email': email,
+      'phoneNumber': phoneNumber,
+      'authProvider': authProvider ?? 'GOOGLE',
+      'profilePicUrl': profilePicUrl,
+    };
+    return _execute<Map<String, dynamic>?>(
+      request: () => _client.post(
         uri,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 4));
-      debugPrint('[ApiService] syncUser status: ${response.statusCode}, body: ${response.body}');
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body);
-      }
-    } catch (e) {
-      debugPrint('[ApiService] syncUser network error: $e');
-    }
-    return null;
+      ),
+      onSuccess: (response) {
+        debugPrint('[ApiService] syncUser status: ${response.statusCode}, body: ${response.body}');
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(response.body);
+        }
+        return null;
+      },
+      fallback: (e) {
+        debugPrint('[ApiService] syncUser fallback: $e');
+        return null;
+      },
+    );
   }
 
   /// Get user profile from backend by Firebase UID
   Future<Map<String, dynamic>?> getUserProfile(String firebaseUid) async {
-    try {
-      final response = await _client.get(Uri.parse('$baseUrl/users/$firebaseUid')).timeout(
-        const Duration(seconds: 3),
-      );
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body);
-      }
-    } catch (_) {}
-    return null;
+    return _execute<Map<String, dynamic>?>(
+      timeout: const Duration(seconds: 3),
+      request: () => _client.get(Uri.parse('$baseUrl/users/$firebaseUid')),
+      onSuccess: (response) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(response.body);
+        }
+        return null;
+      },
+      fallback: (_) => null,
+    );
   }
 
   static final Set<String> _locallyKnownUsernames = {
@@ -396,28 +468,33 @@ class ApiService {
     final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
     final last10 = digits.length >= 10 ? digits.substring(digits.length - 10) : digits;
 
-    try {
-      final encodedPhone = Uri.encodeQueryComponent(phone.trim());
-      final response = await _client.get(
-        Uri.parse('$baseUrl/users/by-phone?phone=$encodedPhone'),
-      ).timeout(const Duration(seconds: 3));
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body);
-      }
-
-      // If not found, try stripped 10 digits as fallback
-      if (last10.isNotEmpty) {
-        final fallbackResp = await _client.get(
-          Uri.parse('$baseUrl/users/by-phone?phone=$last10'),
-        ).timeout(const Duration(seconds: 2));
-        if (fallbackResp.statusCode >= 200 && fallbackResp.statusCode < 300) {
-          return jsonDecode(fallbackResp.body);
+    final result = await _execute<Map<String, dynamic>?>(
+      timeout: const Duration(seconds: 3),
+      request: () {
+        final encodedPhone = Uri.encodeQueryComponent(phone.trim());
+        return _client.get(Uri.parse('$baseUrl/users/by-phone?phone=$encodedPhone'));
+      },
+      onSuccess: (response) async {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(response.body);
         }
-      }
-    } catch (e) {
-      debugPrint('[ApiService] getUserByPhone error: $e');
-    }
+        if (last10.isNotEmpty) {
+          final fallbackResp = await _client
+              .get(Uri.parse('$baseUrl/users/by-phone?phone=$last10'))
+              .timeout(const Duration(seconds: 2));
+          if (fallbackResp.statusCode >= 200 && fallbackResp.statusCode < 300) {
+            return jsonDecode(fallbackResp.body);
+          }
+        }
+        return null;
+      },
+      fallback: (e) {
+        debugPrint('[ApiService] getUserByPhone fallback: $e');
+        return null;
+      },
+    );
 
+    if (result != null) return result;
     if (last10.isNotEmpty && _locallyKnownUsersByPhone.containsKey(last10)) {
       return _locallyKnownUsersByPhone[last10];
     }
@@ -427,18 +504,25 @@ class ApiService {
   /// Get user profile from backend by Username
   Future<Map<String, dynamic>?> getUserByUsername(String username) async {
     final clean = username.trim().toLowerCase();
-    try {
-      final encodedUsername = Uri.encodeQueryComponent(username.trim());
-      final response = await _client.get(
-        Uri.parse('$baseUrl/users/by-username?username=$encodedUsername'),
-      ).timeout(const Duration(seconds: 3));
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return jsonDecode(response.body);
-      }
-    } catch (e) {
-      debugPrint('[ApiService] getUserByUsername error: $e');
-    }
+    final result = await _execute<Map<String, dynamic>?>(
+      timeout: const Duration(seconds: 3),
+      request: () {
+        final encodedUsername = Uri.encodeQueryComponent(username.trim());
+        return _client.get(Uri.parse('$baseUrl/users/by-username?username=$encodedUsername'));
+      },
+      onSuccess: (response) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return jsonDecode(response.body);
+        }
+        return null;
+      },
+      fallback: (e) {
+        debugPrint('[ApiService] getUserByUsername fallback: $e');
+        return null;
+      },
+    );
 
+    if (result != null) return result;
     if (_locallyKnownUsersByUsername.containsKey(clean)) {
       return _locallyKnownUsersByUsername[clean];
     }
@@ -452,33 +536,38 @@ class ApiService {
       return true;
     }
 
-    try {
-      final encodedUsername = Uri.encodeQueryComponent(username.trim());
-      final response = await _client.get(
-        Uri.parse('$baseUrl/users/check-username?username=$encodedUsername'),
-      ).timeout(const Duration(seconds: 3));
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body);
-        return data['exists'] == true;
-      }
-    } catch (_) {}
-    return _locallyKnownUsernames.contains(clean);
+    return _execute<bool>(
+      timeout: const Duration(seconds: 3),
+      request: () {
+        final encodedUsername = Uri.encodeQueryComponent(username.trim());
+        return _client.get(Uri.parse('$baseUrl/users/check-username?username=$encodedUsername'));
+      },
+      onSuccess: (response) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          final data = jsonDecode(response.body);
+          return data['exists'] == true;
+        }
+        return _locallyKnownUsernames.contains(clean);
+      },
+      fallback: (_) => _locallyKnownUsernames.contains(clean),
+    );
   }
 
   /// Update username in backend
   Future<bool> updateUsername(String firebaseUid, String username) async {
-    try {
-      final response = await _client.put(
+    return _execute<bool>(
+      timeout: const Duration(seconds: 3),
+      request: () => _client.put(
         Uri.parse('$baseUrl/users/username'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'firebaseUid': firebaseUid,
           'username': username,
         }),
-      ).timeout(const Duration(seconds: 3));
-      return response.statusCode >= 200 && response.statusCode < 300;
-    } catch (_) {}
-    return false;
+      ),
+      onSuccess: (response) => response.statusCode >= 200 && response.statusCode < 300,
+      fallback: (_) => false,
+    );
   }
 
   static ShowSeatMap _generateFallbackSeatMap(

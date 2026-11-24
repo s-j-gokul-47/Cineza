@@ -19,6 +19,7 @@ public class BookingResponse {
     private BookingStatus status;
     private LocalDateTime bookedAt;
     private String qrCodeData;
+    private String notificationMessage;
 
     public BookingResponse() {}
 
@@ -75,4 +76,7 @@ public class BookingResponse {
 
     public String getQrCodeData() { return qrCodeData; }
     public void setQrCodeData(String qrCodeData) { this.qrCodeData = qrCodeData; }
+
+    public String getNotificationMessage() { return notificationMessage; }
+    public void setNotificationMessage(String notificationMessage) { this.notificationMessage = notificationMessage; }
 }

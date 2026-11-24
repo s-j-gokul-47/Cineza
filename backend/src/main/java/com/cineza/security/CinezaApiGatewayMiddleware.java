@@ -1,11 +1,13 @@
 package com.cineza.security;
 
+import com.cineza.resilience.ExternalServiceCircuitBreaker;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,13 +25,19 @@ public class CinezaApiGatewayMiddleware extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(CinezaApiGatewayMiddleware.class);
     private static final int MAX_REQUESTS_PER_MINUTE = 120;
+    private static final Duration REDIS_RATE_LIMIT_TIMEOUT = Duration.ofMillis(1000);
 
     private final JwtTokenProvider tokenProvider;
     private final StringRedisTemplate redisTemplate;
+    private final ExternalServiceCircuitBreaker circuitBreaker;
 
-    public CinezaApiGatewayMiddleware(JwtTokenProvider tokenProvider, StringRedisTemplate redisTemplate) {
+    public CinezaApiGatewayMiddleware(
+            JwtTokenProvider tokenProvider,
+            StringRedisTemplate redisTemplate,
+            ObjectProvider<ExternalServiceCircuitBreaker> circuitBreakerProvider) {
         this.tokenProvider = tokenProvider;
         this.redisTemplate = redisTemplate;
+        this.circuitBreaker = circuitBreakerProvider.getIfAvailable();
     }
 
     @Override
@@ -80,18 +88,33 @@ public class CinezaApiGatewayMiddleware extends OncePerRequestFilter {
     }
 
     private boolean checkRateLimit(String clientIp) {
+        if (circuitBreaker != null) {
+            return Boolean.TRUE.equals(circuitBreaker.execute(
+                    "redis-ratelimit",
+                    REDIS_RATE_LIMIT_TIMEOUT,
+                    () -> performRateLimitIncrement(clientIp),
+                    ex -> {
+                        log.warn("Redis rate limit fallback triggered for IP [{}]. Allowing request. Reason: {}",
+                                clientIp, ex.getMessage());
+                        return true;
+                    }
+            ));
+        }
         try {
-            String rateKey = "cineza:ratelimit:ip:" + clientIp;
-            Long count = redisTemplate.opsForValue().increment(rateKey);
-            if (count != null && count == 1) {
-                redisTemplate.expire(rateKey, Duration.ofMinutes(1));
-            }
-            return count == null || count <= MAX_REQUESTS_PER_MINUTE;
+            return performRateLimitIncrement(clientIp);
         } catch (Exception e) {
-            // Graceful fallback if Redis rate limiter fails: allow request to proceed
             log.warn("Redis rate limit check failed for IP [{}]. Bypassing limit. Error: {}", clientIp, e.getMessage());
             return true;
         }
+    }
+
+    private boolean performRateLimitIncrement(String clientIp) {
+        String rateKey = "cineza:ratelimit:ip:" + clientIp;
+        Long count = redisTemplate.opsForValue().increment(rateKey);
+        if (count != null && count == 1) {
+            redisTemplate.expire(rateKey, Duration.ofMinutes(1));
+        }
+        return count == null || count <= MAX_REQUESTS_PER_MINUTE;
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

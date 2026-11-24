@@ -2,6 +2,7 @@ package com.cineza.service;
 
 import com.cineza.dto.SeatLockResponse;
 import com.cineza.repository.BookingRepository;
+import com.cineza.resilience.ExternalServiceCircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,9 +16,12 @@ import java.util.*;
 public class SeatLockService {
 
     private static final Logger log = LoggerFactory.getLogger(SeatLockService.class);
+    private static final String REDIS_LOCKS_CIRCUIT = "redis-locks";
+    private static final Duration REDIS_LOCK_TIMEOUT = Duration.ofMillis(2000);
 
     private final StringRedisTemplate redisTemplate;
     private final BookingRepository bookingRepository;
+    private final ExternalServiceCircuitBreaker circuitBreaker;
 
     @Value("${cineza.seat-lock.ttl-seconds:600}")
     private long lockTtlSeconds;
@@ -25,15 +29,18 @@ public class SeatLockService {
     @Value("${cineza.seat-lock.lock-prefix:cineza:lock:show:}")
     private String lockPrefix;
 
-    public SeatLockService(StringRedisTemplate redisTemplate, BookingRepository bookingRepository) {
+    public SeatLockService(
+            StringRedisTemplate redisTemplate,
+            BookingRepository bookingRepository,
+            ExternalServiceCircuitBreaker circuitBreaker) {
         this.redisTemplate = redisTemplate;
         this.bookingRepository = bookingRepository;
+        this.circuitBreaker = circuitBreaker;
     }
 
     /**
-     * Atomically lock multiple seats for a given show with a 10-minute TTL (600 seconds).
-     * If any seat is already booked in MySQL or locked in Redis, all locks acquired during
-     * this attempt are immediately rolled back.
+     * Atomically lock multiple seats for a given show with a 10-minute TTL (600 seconds),
+     * protected by timeout, circuit breaker, and friendly fallback when Redis is unavailable.
      */
     public SeatLockResponse lockSeats(Long showId, List<Long> seatIds, String userId) {
         log.info("Attempting to lock seats {} for showId {} by user {}", seatIds, showId, userId);
@@ -50,7 +57,19 @@ public class SeatLockService {
             return SeatLockResponse.conflict(showId, conflictingBooked);
         }
 
-        // 2. Attempt atomic lock for each seat in Redis with 10-minute TTL
+        // 2. Attempt atomic lock in Redis under timeout + circuit breaker
+        return circuitBreaker.execute(
+                REDIS_LOCKS_CIRCUIT,
+                REDIS_LOCK_TIMEOUT,
+                () -> acquireRedisLocks(showId, seatIds, userId),
+                ex -> SeatLockResponse.unavailable(
+                        showId,
+                        "Seat reservation cache is temporarily busy. Please try locking your seats again in a moment."
+                )
+        );
+    }
+
+    private SeatLockResponse acquireRedisLocks(Long showId, List<Long> seatIds, String userId) {
         String lockToken = UUID.randomUUID().toString();
         String lockValue = lockToken + ":" + userId;
         Duration ttl = Duration.ofSeconds(lockTtlSeconds);
@@ -70,21 +89,24 @@ public class SeatLockService {
             }
         }
 
-        // 3. Rollback if not all seats could be locked
+        // Rollback if not all seats could be locked
         if (!conflictingSeats.isEmpty() || successfullyAcquired.size() != seatIds.size()) {
             log.warn("Seat locking conflict detected for show {}. Rolling back {} seats", showId, successfullyAcquired.size());
             for (Long seatId : successfullyAcquired) {
-                String seatKey = buildSeatKey(showId, seatId);
-                redisTemplate.delete(seatKey);
+                redisTemplate.delete(buildSeatKey(showId, seatId));
             }
             return SeatLockResponse.conflict(showId, conflictingSeats);
         }
 
-        // 4. Save metadata token index with matching TTL
         String tokenKey = "cineza:token:" + lockToken;
-        redisTemplate.opsForValue().set(tokenKey, showId + ":" + String.join(",", seatIds.stream().map(String::valueOf).toList()), ttl);
+        redisTemplate.opsForValue().set(
+                tokenKey,
+                showId + ":" + String.join(",", seatIds.stream().map(String::valueOf).toList()),
+                ttl
+        );
 
-        log.info("Successfully locked seats {} for show {} with token {} (TTL: {}s)", successfullyAcquired, showId, lockToken, lockTtlSeconds);
+        log.info("Successfully locked seats {} for show {} with token {} (TTL: {}s)",
+                successfullyAcquired, showId, lockToken, lockTtlSeconds);
         return SeatLockResponse.successful(lockToken, showId, successfullyAcquired, lockTtlSeconds);
     }
 
@@ -96,15 +118,22 @@ public class SeatLockService {
             return false;
         }
 
-        for (Long seatId : seatIds) {
-            String seatKey = buildSeatKey(showId, seatId);
-            String value = redisTemplate.opsForValue().get(seatKey);
-            if (value == null || !value.startsWith(lockToken)) {
-                log.warn("Lock verification failed for show {} seat {}: expected token {}", showId, seatId, lockToken);
-                return false;
-            }
-        }
-        return true;
+        return Boolean.TRUE.equals(circuitBreaker.execute(
+                REDIS_LOCKS_CIRCUIT,
+                REDIS_LOCK_TIMEOUT,
+                () -> {
+                    for (Long seatId : seatIds) {
+                        String value = redisTemplate.opsForValue().get(buildSeatKey(showId, seatId));
+                        if (value == null || !value.startsWith(lockToken)) {
+                            log.warn("Lock verification failed for show {} seat {}: expected token {}",
+                                    showId, seatId, lockToken);
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+                ex -> false
+        ));
     }
 
     /**
@@ -112,42 +141,61 @@ public class SeatLockService {
      */
     public void releaseLocks(Long showId, List<Long> seatIds, String lockToken) {
         log.info("Releasing locks for show {} seats {} with token {}", showId, seatIds, lockToken);
-        for (Long seatId : seatIds) {
-            String seatKey = buildSeatKey(showId, seatId);
-            String value = redisTemplate.opsForValue().get(seatKey);
-            if (value != null && (lockToken == null || value.startsWith(lockToken))) {
-                redisTemplate.delete(seatKey);
-            }
-        }
-        if (lockToken != null) {
-            redisTemplate.delete("cineza:token:" + lockToken);
-        }
+        circuitBreaker.execute(
+                REDIS_LOCKS_CIRCUIT,
+                REDIS_LOCK_TIMEOUT,
+                () -> {
+                    for (Long seatId : seatIds) {
+                        String seatKey = buildSeatKey(showId, seatId);
+                        String value = redisTemplate.opsForValue().get(seatKey);
+                        if (value != null && (lockToken == null || value.startsWith(lockToken))) {
+                            redisTemplate.delete(seatKey);
+                        }
+                    }
+                    if (lockToken != null) {
+                        redisTemplate.delete("cineza:token:" + lockToken);
+                    }
+                    return null;
+                },
+                ex -> null
+        );
     }
 
     /**
      * Check if a specific seat is currently locked in Redis.
      */
     public boolean isSeatLocked(Long showId, Long seatId) {
-        String seatKey = buildSeatKey(showId, seatId);
-        return Boolean.TRUE.equals(redisTemplate.hasKey(seatKey));
+        return Boolean.TRUE.equals(circuitBreaker.execute(
+                REDIS_LOCKS_CIRCUIT,
+                REDIS_LOCK_TIMEOUT,
+                () -> Boolean.TRUE.equals(redisTemplate.hasKey(buildSeatKey(showId, seatId))),
+                ex -> false
+        ));
     }
 
     /**
      * Returns a set of all currently locked seat IDs for a given show.
      */
     public Set<Long> getLockedSeatIds(Long showId) {
-        String pattern = lockPrefix + showId + ":seat:*";
-        Set<String> keys = redisTemplate.keys(pattern);
-        Set<Long> lockedIds = new HashSet<>();
-        if (keys != null) {
-            for (String key : keys) {
-                try {
-                    String idStr = key.substring(key.lastIndexOf(":") + 1);
-                    lockedIds.add(Long.parseLong(idStr));
-                } catch (Exception ignored) {}
-            }
-        }
-        return lockedIds;
+        return circuitBreaker.execute(
+                REDIS_LOCKS_CIRCUIT,
+                REDIS_LOCK_TIMEOUT,
+                () -> {
+                    String pattern = lockPrefix + showId + ":seat:*";
+                    Set<String> keys = redisTemplate.keys(pattern);
+                    Set<Long> lockedIds = new HashSet<>();
+                    if (keys != null) {
+                        for (String key : keys) {
+                            try {
+                                String idStr = key.substring(key.lastIndexOf(":") + 1);
+                                lockedIds.add(Long.parseLong(idStr));
+                            } catch (Exception ignored) {}
+                        }
+                    }
+                    return lockedIds;
+                },
+                ex -> Collections.emptySet()
+        );
     }
 
     /**
@@ -155,9 +203,15 @@ public class SeatLockService {
      */
     public boolean isSeatLockedByUser(Long showId, Long seatId, String lockToken) {
         if (lockToken == null) return false;
-        String seatKey = buildSeatKey(showId, seatId);
-        String val = redisTemplate.opsForValue().get(seatKey);
-        return val != null && val.startsWith(lockToken);
+        return Boolean.TRUE.equals(circuitBreaker.execute(
+                REDIS_LOCKS_CIRCUIT,
+                REDIS_LOCK_TIMEOUT,
+                () -> {
+                    String val = redisTemplate.opsForValue().get(buildSeatKey(showId, seatId));
+                    return val != null && val.startsWith(lockToken);
+                },
+                ex -> false
+        ));
     }
 
     public long getLockTtlSeconds() {

@@ -55,6 +55,19 @@ public class SeatLockResponse {
         );
     }
 
+    public static SeatLockResponse unavailable(Long showId, String friendlyMessage) {
+        return new SeatLockResponse(
+                false,
+                friendlyMessage,
+                null,
+                showId,
+                List.of(),
+                List.of(),
+                0,
+                null
+        );
+    }
+
     public boolean isSuccess() { return success; }
     public void setSuccess(boolean success) { this.success = success; }
 

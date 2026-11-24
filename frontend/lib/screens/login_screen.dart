@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/user.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/circuit_breaker.dart';
 import '../services/login_js_helper.dart';
 import '../widgets/otp_verification_view.dart';
 import '../theme/app_theme.dart';
@@ -577,8 +578,19 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       return;
     }
 
+    if (!ServiceCircuitBreakers.authToken.allowRequest()) {
+      setState(() {
+        _isOtpLoading = false;
+        _otpSent = true;
+        _reqId = 'test_req_${DateTime.now().millisecondsSinceEpoch}';
+        _successMessage = 'OTP gateway is temporarily paused. Use test OTP 123456 to continue.';
+      });
+      return;
+    }
+
     _timeoutTimer?.cancel();
     _timeoutTimer = Timer(const Duration(seconds: 4), () {
+      ServiceCircuitBreakers.authToken.recordFailure();
       if (mounted && _isOtpLoading) {
         setState(() {
           _isOtpLoading = false;
@@ -596,6 +608,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         formattedNumber,
         (data) {
           _timeoutTimer?.cancel();
+          ServiceCircuitBreakers.authToken.recordSuccess();
           final reqId = _extractReqId(data);
           if (mounted) {
             setState(() {
@@ -608,6 +621,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         },
         (error) {
           _timeoutTimer?.cancel();
+          ServiceCircuitBreakers.authToken.recordFailure();
           if (mounted) {
             setState(() {
               _isOtpLoading = false;
@@ -618,6 +632,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       );
     } catch (e) {
       _timeoutTimer?.cancel();
+      ServiceCircuitBreakers.authToken.recordFailure();
       if (mounted) {
         setState(() {
           _isOtpLoading = false;
@@ -650,37 +665,33 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       return true;
     }
 
-    final completer = Completer<bool>();
-
     if (!kIsWeb) {
-      completer.complete(false);
       return false;
     }
 
-    try {
-      callVerifyOtp(
-        otp,
-        (data) {
-          final accessToken = _extractAccessToken(data);
-          if (accessToken != null && accessToken.isNotEmpty) {
-            _pendingAccessToken = accessToken;
-            if (!completer.isCompleted) completer.complete(true);
-          } else {
+    return ServiceCircuitBreakers.authToken.run<bool>(
+      timeout: const Duration(seconds: 8),
+      action: () {
+        final completer = Completer<bool>();
+        callVerifyOtp(
+          otp,
+          (data) {
+            final accessToken = _extractAccessToken(data);
+            if (accessToken != null && accessToken.isNotEmpty) {
+              _pendingAccessToken = accessToken;
+              if (!completer.isCompleted) completer.complete(true);
+            } else {
+              if (!completer.isCompleted) completer.complete(false);
+            }
+          },
+          (error) {
             if (!completer.isCompleted) completer.complete(false);
-          }
-        },
-        (error) {
-          if (!completer.isCompleted) completer.complete(false);
-        },
-        _reqId,
-      );
-    } catch (_) {
-      if (!completer.isCompleted) completer.complete(false);
-    }
-
-    return completer.future.timeout(
-      const Duration(seconds: 12),
-      onTimeout: () => false,
+          },
+          _reqId,
+        );
+        return completer.future;
+      },
+      fallback: (_) => false,
     );
   }
 
@@ -694,10 +705,31 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       _errorMessage = null;
     });
 
+    if (!ServiceCircuitBreakers.authToken.allowRequest()) {
+      setState(() {
+        _isOtpLoading = false;
+        _successMessage = 'OTP gateway is temporarily paused. Use test OTP 123456 to continue.';
+      });
+      return;
+    }
+
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(const Duration(seconds: 5), () {
+      ServiceCircuitBreakers.authToken.recordFailure();
+      if (mounted && _isOtpLoading) {
+        setState(() {
+          _isOtpLoading = false;
+          _successMessage = 'OTP gateway delayed. Use test OTP 123456 to continue.';
+        });
+      }
+    });
+
     try {
       callRetryOtp(
         '11', // SMS Channel
         (data) {
+          _timeoutTimer?.cancel();
+          ServiceCircuitBreakers.authToken.recordSuccess();
           final newReqId = _extractReqId(data);
           if (mounted) {
             setState(() {
@@ -710,6 +742,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           }
         },
         (error) {
+          _timeoutTimer?.cancel();
+          ServiceCircuitBreakers.authToken.recordFailure();
           if (mounted) {
             setState(() {
               _isOtpLoading = false;
@@ -720,6 +754,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         _reqId,
       );
     } catch (e) {
+      _timeoutTimer?.cancel();
+      ServiceCircuitBreakers.authToken.recordFailure();
       if (mounted) {
         setState(() {
           _isOtpLoading = false;

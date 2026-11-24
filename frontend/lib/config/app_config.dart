@@ -37,4 +37,14 @@ class AppConfig {
     defaultValue:
         'https://image.tmdb.org/t/p/w500/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg',
   );
+
+  static const int apiTimeoutMs = int.fromEnvironment(
+    'CINEZA_API_TIMEOUT_MS',
+    defaultValue: 4000,
+  );
+
+  static const int authTimeoutMs = int.fromEnvironment(
+    'CINEZA_AUTH_TIMEOUT_MS',
+    defaultValue: 6000,
+  );
 }

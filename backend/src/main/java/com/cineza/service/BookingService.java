@@ -2,6 +2,8 @@ package com.cineza.service;
 
 import com.cineza.dto.BookingRequest;
 import com.cineza.dto.BookingResponse;
+import com.cineza.integration.EmailNotificationClient;
+import com.cineza.integration.PaymentGatewayClient;
 import com.cineza.model.Booking;
 import com.cineza.model.BookingSeat;
 import com.cineza.model.Seat;
@@ -18,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -33,24 +34,31 @@ public class BookingService {
     private final ShowRepository showRepository;
     private final SeatRepository seatRepository;
     private final SeatLockService seatLockService;
+    private final PaymentGatewayClient paymentGatewayClient;
+    private final EmailNotificationClient emailNotificationClient;
 
     public BookingService(BookingRepository bookingRepository,
                           BookingSeatRepository bookingSeatRepository,
                           ShowRepository showRepository,
                           SeatRepository seatRepository,
-                          SeatLockService seatLockService) {
+                          SeatLockService seatLockService,
+                          PaymentGatewayClient paymentGatewayClient,
+                          EmailNotificationClient emailNotificationClient) {
         this.bookingRepository = bookingRepository;
         this.bookingSeatRepository = bookingSeatRepository;
         this.showRepository = showRepository;
         this.seatRepository = seatRepository;
         this.seatLockService = seatLockService;
+        this.paymentGatewayClient = paymentGatewayClient;
+        this.emailNotificationClient = emailNotificationClient;
     }
 
     /**
      * Completes checkout flow:
      * 1. Validates that the active Redis lock with 10-min TTL belongs to the requesting user/token
-     * 2. Transactionally saves Booking and BookingSeat entities into MySQL
-     * 3. Releases the temporary Redis locks
+     * 2. Authorizes payment through circuit-breaker-protected payment gateway
+     * 3. Transactionally saves Booking and BookingSeat entities into MySQL
+     * 4. Releases temporary Redis locks and sends confirmation email with friendly fallback
      */
     @Transactional
     public BookingResponse confirmBooking(BookingRequest request) {
@@ -83,12 +91,19 @@ public class BookingService {
             seatLabels.add(seat.getRowName() + seat.getSeatNumber());
         }
 
-        // 4. Create and save Booking
+        // 4. Authorize payment (bounded timeout + circuit breaker + friendly fallback)
         String bookingRef = "CNZ-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        PaymentGatewayClient.PaymentResult paymentResult =
+                paymentGatewayClient.authorizePayment(bookingRef, request.getUserEmail(), totalAmount);
+        if (paymentResult.declined()) {
+            throw new IllegalStateException(paymentResult.friendlyMessage());
+        }
+
+        // 5. Create and save Booking + BookingSeat records
         Booking booking = new Booking(bookingRef, show, request.getUserEmail(), request.getUserPhone(), totalAmount);
+        booking.setStatus(paymentResult.resultingStatus());
         Booking savedBooking = bookingRepository.save(booking);
 
-        // 5. Save BookingSeat records
         for (Seat seat : seats) {
             BigDecimal seatPrice = seat.getBasePrice()
                     .multiply(show.getPriceMultiplier())
@@ -97,14 +112,27 @@ public class BookingService {
             bookingSeatRepository.save(bookingSeat);
         }
 
-        // 6. Release Redis locks (the seats are now permanently BOOKED in MySQL)
+        // 6. Release temporary Redis locks and dispatch confirmation email (non-fatal fallback on email outage)
         seatLockService.releaseLocks(request.getShowId(), request.getSeatIds(), request.getLockToken());
 
-        log.info("Successfully confirmed booking {} for {}", bookingRef, request.getUserEmail());
+        String notificationMessage = paymentResult.friendlyMessage();
+        if (paymentResult.resultingStatus() == BookingStatus.CONFIRMED) {
+            EmailNotificationClient.EmailDeliveryResult emailResult = emailNotificationClient.sendBookingConfirmation(
+                    request.getUserEmail(),
+                    bookingRef,
+                    show.getMovie().getTitle(),
+                    show.getScreen().getTheatre().getName(),
+                    seatLabels,
+                    totalAmount
+            );
+            notificationMessage = emailResult.friendlyMessage();
+        }
+
+        log.info("Successfully processed booking {} (status={}) for {}", bookingRef, savedBooking.getStatus(), request.getUserEmail());
 
         String qrData = "CINEZA:" + bookingRef + ":" + show.getMovie().getTitle() + ":" + String.join(",", seatLabels);
 
-        return new BookingResponse(
+        BookingResponse response = new BookingResponse(
                 savedBooking.getId(),
                 bookingRef,
                 show.getMovie().getTitle(),
@@ -118,6 +146,8 @@ public class BookingService {
                 savedBooking.getCreatedAt(),
                 qrData
         );
+        response.setNotificationMessage(notificationMessage);
+        return response;
     }
 
     public List<Booking> getUserBookings(String email) {
