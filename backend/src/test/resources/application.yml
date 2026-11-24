@@ -1,0 +1,45 @@
+# ──────────────────────────────────────────────────────────────────────
+# Test-profile application properties for the GitHub Actions CI runner.
+# Uses H2 in-memory (MySQL-compatibility mode) instead of a live MySQL.
+# Redis is provided by the service container on localhost:6379.
+# ──────────────────────────────────────────────────────────────────────
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:cineza_test;DB_CLOSE_DELAY=-1;MODE=MySQL}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER:org.h2.Driver}
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop      # Recreate schema from entities on every test run
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+      timeout: 2000ms
+
+  # Suppress banner noise in test output
+  main:
+    banner-mode: "off"
+
+# Use a deterministic JWT secret in tests (overridden by CI secret in GH Actions)
+cineza:
+  jwt:
+    secret: ${CINEZA_JWT_SECRET:ci-test-secret-key-at-least-256-bits-long-for-hs512}
+    expiration-ms: 86400000
+
+  seat-lock:
+    ttl-minutes: 10
+    ttl-seconds: 600
+    lock-prefix: "cineza:lock:show:"
+
+logging:
+  level:
+    com.cineza: WARN
+    org.springframework: WARN
