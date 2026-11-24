@@ -1,0 +1,43 @@
+# Replace cineza.example.com with your actual domain name
+cineza.example.com {
+    # Reverse proxy incoming HTTPS traffic to your app running on port 3000
+    reverse_proxy localhost:3000 {
+        header_up Host {http.reverse_proxy.header.host}
+        header_up X-Real-IP {http.reverse_proxy.header.x_real_ip}
+        header_up X-Forwarded-For {http.reverse_proxy.header.x_forwarded_for}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Enable gzip (and zstd) compression
+    encode gzip zstd
+
+    # Security Headers (Zero Vulnerabilities Hardening)
+    header {
+        # Enforce HTTPS strictly (1 year + subdomains)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Prevent MIME-type sniffing
+        X-Content-Type-Options "nosniff"
+        
+        # Prevent Clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+        
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Content Security Policy (CSP) - Adjust as needed for your application assets/APIs
+        Content-Security-Policy "default-src 'self' http://localhost:8080 https://cineza-auth-api.gokulakannansj.workers.dev; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:;"
+        
+        # Permissions Policy
+        Permissions-Policy "geolocation=(self), microphone=(), camera=()"
+    }
+
+    # Log access and errors
+    log {
+        output file /var/log/caddy/cineza.access.log
+        format json
+    }
+}

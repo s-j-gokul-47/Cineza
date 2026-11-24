@@ -68,6 +68,11 @@ application-secret.yml
 *.pem
 *.keystore
 *.jks
+*.crt
+*.cer
+*.csr
+*.p12
+*.pfx
 
 # Flutter Ephemeral & Generated
 frontend/macos/Flutter/ephemeral/
