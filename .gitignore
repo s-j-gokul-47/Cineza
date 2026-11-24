@@ -47,18 +47,32 @@ Thumbs.db
 .env
 .env.*
 *.env
+**/*.env
+**/*.env.*
 frontend/android/app/google-services.json
 frontend/ios/Runner/GoogleService-Info.plist
 frontend/lib/firebase_options.dart
 frontend/.firebaserc
 frontend/firebase.json
 frontend/web/msg91_config.js
+*serviceAccountKey*.json
+firebase-adminsdk*.json
+client_secret*.json
+*credentials*.json
+key.properties
 application-secret.properties
 application-secret.yml
+**/application-secret.*
+**/application-local.*
 *.key
 *.pem
 *.keystore
 *.jks
+
+# Flutter Ephemeral & Generated
+frontend/macos/Flutter/ephemeral/
+frontend/macos/Flutter/Generated.xcconfig
+**/ephemeral/
 
 # Agent & Scratch Tooling
 .agents/
